@@ -1,4 +1,5 @@
 import { RANKS, analyzeHand, handValue, formatEV, formatPct } from './blackjack.js';
+import { detectVisibleCards } from './card-detector.js';
 
 const state = { playerCards: [], otherCards: [] };
 const $ = (id) => document.getElementById(id);
@@ -15,8 +16,12 @@ const actionCards = $('actionCards');
 const splitWarning = $('splitWarning');
 const remainingCount = $('remainingCount');
 const detectorStatus = $('detectorStatus');
+const detectorBadge = $('detectorBadge');
+const detectorOverlay = $('detectorOverlay');
 
 let requestId = 0;
+let scanId = 0;
+let lastDetectionBoxes = [];
 let calcWorker = null;
 
 try {
@@ -90,6 +95,68 @@ function makeProb(label, value){
   el.className = 'prob';
   el.innerHTML = `<span>${label}</span><strong>${formatPct(value)}</strong>`;
   return el;
+}
+
+function drawDetectorOverlay(boxes=lastDetectionBoxes){
+  lastDetectionBoxes = boxes || [];
+  const img = $('screenshotPreview');
+  if(!detectorOverlay || !img?.src) return;
+  const w = Math.max(1, Math.round(img.clientWidth));
+  const h = Math.max(1, Math.round(img.clientHeight));
+  detectorOverlay.width = w;
+  detectorOverlay.height = h;
+  const ctx = detectorOverlay.getContext('2d');
+  ctx.clearRect(0,0,w,h);
+  ctx.lineWidth = Math.max(2, w/320);
+  ctx.font = `700 ${Math.max(12,Math.round(w/34))}px system-ui`;
+  ctx.textBaseline = 'top';
+
+  for(const box of lastDetectionBoxes){
+    const x=box.x*w, y=box.y*h, bw=box.w*w, bh=box.h*h;
+    const dealer=box.role==='dealer';
+    ctx.strokeStyle = dealer ? '#ffd27a' : '#7de3aa';
+    ctx.fillStyle = dealer ? '#ffd27a' : '#7de3aa';
+    ctx.strokeRect(x,y,bw,bh);
+    const label = `${dealer?'D':'YOU'} ${box.rank||'?'}`;
+    const tw=ctx.measureText(label).width+8;
+    const th=Math.max(18,Math.round(w/30));
+    ctx.fillRect(x,Math.max(0,y-th),tw,th);
+    ctx.fillStyle='#07110c';
+    ctx.fillText(label,x+4,Math.max(0,y-th)+2);
+  }
+}
+
+async function runScreenshotDetection(img,id){
+  detectorBadge.textContent = 'SCANNING';
+  detectorStatus.textContent = 'Finding GTA card shapes…';
+  try {
+    const detected = await detectVisibleCards(img,{
+      onProgress(info){
+        if(id!==scanId) return;
+        detectorStatus.textContent = info?.message || 'Scanning screenshot…';
+      }
+    });
+    if(id!==scanId) return;
+    drawDetectorOverlay(detected.boxes||[]);
+
+    if(detected.ready){
+      state.playerCards.splice(0,state.playerCards.length,...detected.playerCards);
+      state.otherCards.length = 0;
+      dealerUp.value = detected.dealerUp || '';
+      detectorBadge.textContent = 'AUTO + CONFIRM';
+      const pct=Math.round((detected.confidence||0)*100);
+      detectorStatus.textContent = `${detected.message} OCR confidence ${pct}%.`;
+      render();
+    } else {
+      detectorBadge.textContent = 'MANUAL CHECK';
+      detectorStatus.textContent = detected.message;
+    }
+  } catch(err){
+    if(id!==scanId) return;
+    detectorBadge.textContent = 'MANUAL CHECK';
+    detectorStatus.textContent = `Automatic scan unavailable: ${err?.message || 'unknown OCR error'}. Enter the ranks manually below.`;
+    drawDetectorOverlay([]);
+  }
 }
 
 function showCalculationError(message){
@@ -192,13 +259,16 @@ dealerUp.addEventListener('change', render);
 
 $('resetButton').addEventListener('click', () => {
   requestId++;
+  scanId++;
   state.playerCards.length = 0;
   state.otherCards.length = 0;
   dealerUp.value = '';
   $('screenshotInput').value = '';
   $('previewWrap').classList.add('hidden');
   $('screenshotPreview').removeAttribute('src');
-  detectorStatus.textContent = 'Image upload is ready. Automatic card recognition is the next layer; for now confirm the ranks below.';
+  drawDetectorOverlay([]);
+  detectorBadge.textContent = 'AUTO + CONFIRM';
+  detectorStatus.textContent = 'Choose a GTA blackjack screenshot or photo. The experimental reader will try to fill the ranks automatically, then you can correct anything it misreads.';
   render();
 });
 
@@ -209,14 +279,25 @@ $('screenshotInput').addEventListener('change', (event) => {
     detectorStatus.textContent = 'That file is not an image.';
     return;
   }
+
+  const id=++scanId;
   const url = URL.createObjectURL(file);
   const img = $('screenshotPreview');
   const old = img.dataset.objectUrl;
   if(old) URL.revokeObjectURL(old);
   img.dataset.objectUrl = url;
+  img.onload = () => {
+    if(id!==scanId) return;
+    $('previewWrap').classList.remove('hidden');
+    drawDetectorOverlay([]);
+    runScreenshotDetection(img,id);
+  };
   img.src = url;
   $('previewWrap').classList.remove('hidden');
-  detectorStatus.textContent = 'Screenshot loaded locally on your device. Automatic rank detection will plug into this step next.';
+  detectorBadge.textContent = 'SCANNING';
+  detectorStatus.textContent = 'Screenshot loaded. Preparing local card recognition…';
 });
+
+window.addEventListener('resize',()=>drawDetectorOverlay());
 
 render();
