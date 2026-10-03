@@ -2,5 +2,7 @@
   "name": "gta-blackjack-calculator",
   "private": true,
   "type": "module",
-  "scripts": { "test": "node tests.mjs" }
+  "scripts": {
+    "test": "node --check app.js && node --check card-detector.js && node --check calculator-worker.js && node --check blackjack.js && node tests.mjs"
+  }
 }
