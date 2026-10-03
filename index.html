@@ -21,15 +21,17 @@
           <p class="step">STEP 1</p>
           <h2 id="scan-title">Screenshot</h2>
         </div>
-        <span class="status-badge" id="detectorBadge">MANUAL CONFIRMATION</span>
+        <span class="status-badge" id="detectorBadge">AUTO + CONFIRM</span>
       </div>
 
       <label class="upload-button" for="screenshotInput">Take / choose screenshot</label>
       <input id="screenshotInput" class="sr-only" type="file" accept="image/*">
       <div id="previewWrap" class="preview-wrap hidden">
         <img id="screenshotPreview" alt="Selected GTA blackjack screenshot preview">
+        <canvas id="detectorOverlay" aria-hidden="true"></canvas>
       </div>
-      <p id="detectorStatus" class="muted">Image upload is ready. Automatic card recognition is the next layer; for now confirm the ranks below.</p>
+      <p id="detectorStatus" class="muted" aria-live="polite">Choose a GTA blackjack screenshot or photo. The experimental reader will try to fill the ranks automatically, then you can correct anything it misreads.</p>
+      <p class="privacy-note">Image pixels stay in your browser. The first auto-scan downloads the OCR engine and English recognition data.</p>
     </section>
 
     <section class="panel" aria-labelledby="cards-title">
