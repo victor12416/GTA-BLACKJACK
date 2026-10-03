@@ -2,135 +2,60 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0b1712">\n  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">\n  <meta http-equiv="Pragma" content="no-cache">\n  <meta http-equiv="Expires" content="0">
-  <title>GTA Blackjack Calculator</title>
-  <link rel="stylesheet" href="styles.css?v=20261003-5">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#08110d">
+  <title>GTA Blackjack Quick Calc</title>
+  <link rel="stylesheet" href="styles.css?v=20261003-6">
 </head>
 <body>
-  <main class="shell">
-    <header class="hero">
-      <p class="eyebrow">GTA ONLINE • DIAMOND CASINO</p>
-      <h1>Blackjack Probability Calculator</h1>
-      <p class="lede">Solo-play GTA blackjack scanner with four-deck finite-shoe probability math.</p>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">GTA ONLINE • SOLO BLACKJACK</p>
+        <h1>Quick Calc</h1>
+      </div>
+      <button id="newHandButton" class="new-hand-button" type="button">NEW HAND</button>
     </header>
 
-    <section class="panel screenshot-panel" aria-labelledby="scan-title">
-      <div class="section-head">
-        <div>
-          <p class="step">STEP 1</p>
-          <h2 id="scan-title">Scan the table</h2>
-        </div>
-        <span class="status-badge" id="detectorBadge">AUTO + CONFIRM</span>
-      </div>
+    <section class="hands" aria-label="Current blackjack hand">
+      <button id="dealerPanel" class="hand-panel dealer-panel active" type="button">
+        <span class="hand-label">DEALER</span>
+        <strong id="dealerCard" class="dealer-card">?</strong>
+        <span id="dealerHint" class="hand-hint">Tap a rank below</span>
+      </button>
 
-      <button id="startCameraButton" class="camera-launch-button" type="button">Open camera scanner</button>
-      <div class="scan-divider"><span>or</span></div>
-      <label class="upload-button secondary-upload" for="screenshotInput">Choose screenshot</label>
-      <input id="screenshotInput" class="sr-only" type="file" accept="image/*">
-      <div id="previewWrap" class="preview-wrap hidden">
-        <img id="screenshotPreview" alt="Selected GTA blackjack screenshot preview">
-        <canvas id="detectorOverlay" aria-hidden="true"></canvas>
-      </div>
-      <p id="detectorStatus" class="muted" aria-live="polite">Use the camera scanner or choose a GTA blackjack screenshot. The scanner only targets your hand and the dealer upcard.</p>
-      <p class="privacy-note">Image pixels stay in your browser. The first auto-scan downloads the OCR engine and English recognition data.</p>
+      <button id="playerPanel" class="hand-panel player-panel" type="button">
+        <span class="hand-label">YOU</span>
+        <span id="playerCards" class="player-cards">—</span>
+        <span id="handSummary" class="hand-hint">Waiting for dealer</span>
+      </button>
     </section>
 
-    <section class="panel" aria-labelledby="cards-title">
-      <div class="section-head">
-        <div>
-          <p class="step">STEP 2</p>
-          <h2 id="cards-title">Visible cards</h2>
-        </div>
-        <button id="resetButton" class="text-button" type="button">Reset</button>
+    <section id="resultPanel" class="result-panel" aria-live="polite">
+      <div class="result-heading">
+        <span id="resultLabel">ENTER DEALER CARD</span>
+        <span id="remainingCount"></span>
       </div>
-
-      <div class="field-group">
-        <label for="dealerUp">Dealer upcard</label>
-        <select id="dealerUp">
-          <option value="">Choose card</option>
-          <option>A</option><option>2</option><option>3</option><option>4</option><option>5</option>
-          <option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
-        </select>
-      </div>
-
-      <div class="field-group">
-        <div class="field-label-row">
-          <span class="field-label">Your cards</span>
-          <span id="handSummary" class="hand-summary">Add at least 2 cards</span>
-        </div>
-        <div id="playerCards" class="card-row" aria-live="polite"></div>
-        <div id="rankGrid" class="rank-grid" aria-label="Add a player card"></div>
-      </div>
-
+      <strong id="bestMove" class="best-move">—</strong>
+      <div id="bestProbabilities" class="best-probabilities">Dealer first, then your cards.</div>
+      <div id="actionEvs" class="action-evs" aria-label="Expected values"></div>
+      <div id="resultNote" class="result-note"></div>
     </section>
 
-    <section class="panel result-panel" aria-labelledby="result-title">
-      <div class="section-head">
-        <div>
-          <p class="step">STEP 3</p>
-          <h2 id="result-title">Best move</h2>
-        </div>
-        <span id="remainingCount" class="remaining-count"></span>
+    <section class="entry-panel" aria-label="Card entry">
+      <div class="entry-heading">
+        <span id="entryTarget">DEALER CARD</span>
+        <span class="entry-help">Tap cards as they appear</span>
       </div>
-
-      <div id="emptyState" class="empty-state">Enter the dealer upcard and at least two player cards.</div>
-
-      <div id="results" class="hidden">
-        <div class="recommendation">
-          <span class="recommendation-label">BEST OF CALCULATED ACTIONS</span>
-          <strong id="bestMove">—</strong>
-          <span id="bestEv" class="best-ev"></span>
-        </div>
-        <p id="splitWarning" class="warning hidden"></p>
-        <div id="actionCards" class="action-grid"></div>
-      </div>
+      <div id="rankGrid" class="rank-grid"></div>
     </section>
 
-    <section class="rules-strip" aria-label="GTA blackjack rules modeled">
-      <span>4 decks</span>
-      <span>Fresh shuffle each hand</span>
-      <span>Dealer stands soft 17</span>
-      <span>3:2 blackjack</span>
-      <span>7-card Charlie</span>
-      <span>No insurance / surrender</span>
+    <section class="bottom-controls">
+      <button id="undoButton" class="control-button" type="button">UNDO</button>
+      <button id="switchTargetButton" class="control-button target-button" type="button">EDIT DEALER</button>
     </section>
-
-    <footer>
-      <p>This tool models GTA Online's blackjack rules and calculates expected value from the visible card composition. It does not guarantee a win.</p>
-    </footer>
   </main>
 
-  <section id="cameraMode" class="camera-mode hidden" aria-label="GTA blackjack camera scanner">
-    <div class="camera-stage">
-      <video id="cameraVideo" autoplay playsinline muted></video>
-      <canvas id="cameraFreeze" class="camera-freeze hidden"></canvas>
-      <canvas id="cameraOverlay" class="camera-overlay" aria-hidden="true"></canvas>
-
-      <div class="camera-guides" aria-hidden="true">
-        <div class="camera-guide dealer-guide"><span>DEALER</span></div>
-        <div class="camera-guide player-guide"><span>YOUR CARDS</span></div>
-      </div>
-
-      <div class="camera-topbar">
-        <button id="cameraCloseButton" class="camera-icon-button" type="button" aria-label="Close camera">×</button>
-        <div id="cameraStatus" class="camera-status">Point at the GTA blackjack table</div>
-      </div>
-
-      <div id="cameraResultHud" class="camera-result-hud">
-        <div id="cameraHandText" class="camera-hand-text">Align the dealer and your cards inside the guides.</div>
-        <strong id="cameraMoveText" class="camera-move-text"></strong>
-        <div id="cameraEvText" class="camera-ev-text"></div>
-      </div>
-
-      <div class="camera-controls">
-        <button id="cameraRetakeButton" class="camera-secondary-button hidden" type="button">Retake</button>
-        <button id="cameraCaptureButton" class="camera-shutter" type="button" aria-label="Capture blackjack table"><span></span></button>
-        <button id="cameraUseManualButton" class="camera-secondary-button hidden" type="button">Manual</button>
-      </div>
-    </div>
-  </section>
-
-  <script type="module" src="app.js?v=20261003-5"></script>
+  <script type="module" src="app.js?v=20261003-6"></script>
 </body>
 </html>
