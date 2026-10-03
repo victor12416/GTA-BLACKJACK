@@ -1,20 +1,22 @@
-# GTA Blackjack Quick Calc
+# GTA Blackjack Manual Calculator
 
-A mobile-first GTA Online Diamond Casino blackjack probability calculator designed for extremely fast **manual entry** during solo play.
+A mobile-first GTA Online Diamond Casino blackjack probability calculator designed for fast manual use during solo play.
 
 ## Live workflow
 
-The live page intentionally does **not** use the camera or screenshot scanner anymore. The entire calculator fits inside one phone viewport with page scrolling disabled.
+The live page uses two permanent manual controls:
 
-1. Tap the dealer upcard on the shared rank keypad.
-2. The calculator automatically switches to **YOUR NEXT CARD**.
-3. Tap your first two cards.
-4. The best move appears automatically.
-5. If you hit in GTA, tap the new card and the recommendation recalculates.
-6. Use **UNDO** for a bad tap or **NEW HAND** to immediately start the next deal.
-7. Tap the dealer or player hand panel to switch which side you are editing.
+1. Pick the dealer's showing card from the **DEALER SHOWING** rank grid.
+2. Add your two cards from the separate **ADD YOUR CARD** keypad.
+3. The best move appears automatically.
+4. If GTA tells you to HIT and you receive another card, tap that card on the same player keypad.
+5. Keep adding every new hit card to your hand. The recommendation recalculates after each one.
+6. **UNDO LAST CARD** removes only your newest player card.
+7. **CLEAR YOUR HAND** keeps the dealer card but clears your cards.
+8. **NEW HAND** clears both dealer and player cards for the next deal.
+9. Any player card chip can be tapped to remove that specific card.
 
-Player card chips are individually removable by tapping them.
+The calculator is forced into one phone viewport with page scrolling disabled.
 
 ## Probability engine
 
@@ -26,15 +28,13 @@ Player card chips are individually removable by tapping them.
 - Seven-Card Charlie support.
 - GTA split rules: one split, equal-value cards, double after split, continued play after split aces, and GTA's 3:2 payout for a two-card 21 created by a split.
 - Split EV uses the existing fast four-deck composition approximation so pair calculations remain practical on a phone.
-- Heavy probability calculations run in a Web Worker so entry remains responsive.
-
-The result panel shows the recommended move, its win/push/loss probabilities, and compact EV values for every currently legal action.
+- Heavy probability calculations run in a Web Worker so card entry remains responsive.
 
 See [`RULES.md`](RULES.md) for the GTA-specific rules and evidence used by the engine.
 
 ## Scanner code
 
-Earlier experimental OCR/camera code remains in `card-detector.js` for project history, but it is no longer imported or loaded by the live calculator.
+Earlier experimental camera/OCR code remains in `card-detector.js` for project history, but the live calculator does not import or load it.
 
 ## Run locally
 
