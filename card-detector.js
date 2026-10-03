@@ -184,10 +184,13 @@ function dedupeCandidates(candidates){
 }
 
 function splitWideCandidate(c){
-  // Overlapping GTA cards can merge into one bright connected component. Split only very wide
-  // components; normal single cards are taller than they are wide in the player's perspective.
-  if(c.w/c.h < 1.12) return [c];
-  const estimated = clamp(Math.round(c.w/(c.h*0.62)),2,4);
+  // GTA's camera perspective can make one real card look somewhat wide, so do
+  // not split mild landscape shapes. Only very wide connected components are
+  // treated as multiple overlapping/fanned cards; the hand-region OCR is the
+  // primary fallback for overlap.
+  const aspect=c.w/c.h;
+  if(aspect < 1.45) return [c];
+  const estimated=clamp(Math.round(aspect/0.78),2,4);
   const cardW=c.w/estimated;
   return Array.from({length:estimated},(_,i)=>({
     ...c,
@@ -203,13 +206,13 @@ const GTA_LAYOUT = {
   // are removed. These bounds were calibrated from several GTA Online first-
   // person blackjack screenshots with green and purple felt.
   dealer: {
-    detect:{x:0.30,y:0.16,w:0.42,h:0.43},
-    ocr:{x:0.34,y:0.18,w:0.36,h:0.39},
+    detect:{x:0.36,y:0.16,w:0.32,h:0.43},
+    ocr:{x:0.36,y:0.18,w:0.32,h:0.39},
     targetY:0.36,
   },
   player: {
-    detect:{x:0.28,y:0.45,w:0.46,h:0.44},
-    ocr:{x:0.33,y:0.48,w:0.39,h:0.39},
+    detect:{x:0.34,y:0.45,w:0.36,h:0.44},
+    ocr:{x:0.34,y:0.48,w:0.36,h:0.39},
     targetY:0.67,
   },
 };
