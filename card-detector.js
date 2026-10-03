@@ -265,7 +265,7 @@ function roleShapeLooksPlausible(card,activeBounds,role){
   if(role==='dealer'){
     return rw>=0.018 && rw<=0.16 && rh>=0.025 && rh<=0.20;
   }
-  return rw>=0.030 && rw<=0.17 && rh>=0.055 && rh<=0.18;
+  return rw>=0.025 && rw<=0.18 && rh>=0.050 && rh<=0.24;
 }
 
 function pickRoleRow(candidates,activeBounds,role){
@@ -314,22 +314,31 @@ function classifyRows(candidates,width,height,activeBounds){
   };
 }
 
-function cropRankCanvas(sourceCanvas,box){
-  const sx=clamp(Math.floor(box.x-box.w*0.03),0,sourceCanvas.width-1);
-  const sy=clamp(Math.floor(box.y-box.h*0.03),0,sourceCanvas.height-1);
-  const sw=clamp(Math.ceil(box.w*0.48),8,sourceCanvas.width-sx);
-  const sh=clamp(Math.ceil(box.h*0.34),8,sourceCanvas.height-sy);
-  const out=makeCanvas(260,220);
+function cropRankCanvas(sourceCanvas,box,variant={}){
+  const cropW=variant.cropW ?? 0.48;
+  const cropH=variant.cropH ?? 0.34;
+  const threshold=variant.threshold ?? 150;
+  const pad=variant.pad ?? 0.03;
+
+  const sx=clamp(Math.floor(box.x-box.w*pad),0,sourceCanvas.width-1);
+  const sy=clamp(Math.floor(box.y-box.h*pad),0,sourceCanvas.height-1);
+  const sw=clamp(Math.ceil(box.w*cropW),8,sourceCanvas.width-sx);
+  const sh=clamp(Math.ceil(box.h*cropH),8,sourceCanvas.height-sy);
+  const out=makeCanvas(300,250);
   const ctx=out.getContext('2d',{willReadFrequently:true});
   ctx.fillStyle='#fff'; ctx.fillRect(0,0,out.width,out.height);
-  ctx.drawImage(sourceCanvas,sx,sy,sw,sh,10,10,240,200);
+  ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(sourceCanvas,sx,sy,sw,sh,10,10,280,230);
 
   const id=ctx.getImageData(0,0,out.width,out.height);
   for(let i=0;i<id.data.length;i+=4){
     const r=id.data[i],g=id.data[i+1],b=id.data[i+2];
     const l=0.2126*r+0.7152*g+0.0722*b;
-    // Keep rank ink (black or red) dark while whitening the bright card background.
-    const isInk=l<150 || (r>g*1.25 && r>b*1.18 && r>80);
+    // Preserve both black and red GTA rank glyphs. The threshold is varied
+    // across OCR passes because compression/phone screenshots can wash out a
+    // tiny A/2 differently from the card background.
+    const redInk=(r>g*1.18 && r>b*1.12 && r>65);
+    const isInk=l<threshold || redInk;
     const v=isInk?0:255;
     id.data[i]=v; id.data[i+1]=v; id.data[i+2]=v; id.data[i+3]=255;
   }
@@ -468,11 +477,46 @@ async function readHandRegion(worker,sourceCanvas,role,activeBounds){
 }
 
 async function readCandidate(worker,sourceCanvas,box){
-  const rankCanvas=cropRankCanvas(sourceCanvas,box);
-  const result=await worker.recognize(rankCanvas,{rotateAuto:true});
-  const rank=normalizeOcrRank(result?.data?.text);
-  const confidence=Number(result?.data?.confidence)||0;
-  return {rank,confidence,raw:String(result?.data?.text||'').trim()};
+  const variants=[
+    {cropW:0.48,cropH:0.34,threshold:150,pad:0.03},
+    {cropW:0.58,cropH:0.42,threshold:178,pad:0.05},
+    {cropW:0.40,cropH:0.30,threshold:190,pad:0.02},
+  ];
+  const reads=[];
+
+  for(const variant of variants){
+    const rankCanvas=cropRankCanvas(sourceCanvas,box,variant);
+    const result=await worker.recognize(rankCanvas,{rotateAuto:true});
+    const rank=normalizeOcrRank(result?.data?.text);
+    const confidence=Number(result?.data?.confidence)||0;
+    reads.push({rank,confidence,raw:String(result?.data?.text||'').trim()});
+
+    // A very strong first/second pass does not need a third OCR call.
+    if(rank && confidence>=82) break;
+  }
+
+  const ranked=reads.filter(r=>r.rank);
+  if(!ranked.length) return {rank:null,confidence:0,raw:reads.map(r=>r.raw).filter(Boolean).join(' | '),reads};
+
+  const votes=new Map();
+  for(const r of ranked){
+    const current=votes.get(r.rank)||{count:0,total:0,max:0};
+    current.count++;
+    current.total+=r.confidence;
+    current.max=Math.max(current.max,r.confidence);
+    votes.set(r.rank,current);
+  }
+
+  const winner=[...votes.entries()].sort((a,b)=>{
+    if(b[1].count!==a[1].count) return b[1].count-a[1].count;
+    return b[1].max-a[1].max;
+  })[0];
+  const [rank,stats]=winner;
+  const avg=stats.total/stats.count;
+  // Agreement between independent crops is stronger evidence than one noisy
+  // OCR confidence score, especially for GTA's tiny corner glyphs.
+  const confidence=Math.min(99,Math.max(stats.max,avg+(stats.count>=2?18:0)));
+  return {rank,confidence,raw:reads.map(r=>r.raw).filter(Boolean).join(' | '),reads};
 }
 
 function cardForOverlay(box,role,rank,confidence,width,height){
@@ -535,15 +579,27 @@ export async function detectVisibleCards(image,{onProgress}={}){
   if(playerCards.length<2 && playerChoices.length){
     onProgress?.({stage:'ocr',message:'Reading only the detected player-card cluster…',progress:0.82});
     const cluster=await readCandidateCluster(worker,canvas,playerChoices);
-    if(cluster?.ranks.length>=2 && cluster.confidence>=45){
-      // Never let unrestricted table text create extra cards. The OCR cluster
-      // is cropped around actual card-shaped components only. A single merged
-      // bright component may represent two overlapping cards, so allow one
-      // extra rank beyond the number of detected shapes.
+    const agreesWithAnchor=Boolean(
+      cluster?.ranks.length>=2 &&
+      validPlayer.length>=1 &&
+      cluster.ranks[0]===validPlayer[0].rank
+    );
+    const clusterTrusted=Boolean(
+      cluster?.ranks.length>=2 &&
+      (cluster.confidence>=45 || (agreesWithAnchor && cluster.confidence>=20))
+    );
+    if(clusterTrusted){
+      // Never let unrestricted table text create extra cards. This crop is
+      // anchored to actual card-shaped pixels. If a low-confidence cluster
+      // agrees with a separately OCR'd corner, that corroboration is allowed
+      // to rescue the second rank on heavily overlapped GTA cards.
       const maxPlausible=Math.min(7,Math.max(2,playerChoices.length+1));
       playerCards=cluster.ranks.slice(0,maxPlausible);
-      regionConfidences.push(cluster.confidence);
-      regionBoxes.push({role:'player',rank:playerCards.join(','),confidence:cluster.confidence,...cluster.roi});
+      const effectiveConfidence=agreesWithAnchor
+        ? Math.max(cluster.confidence,Math.min(99,validPlayer[0].confidence+8))
+        : cluster.confidence;
+      regionConfidences.push(effectiveConfidence);
+      regionBoxes.push({role:'player',rank:playerCards.join(','),confidence:effectiveConfidence,...cluster.roi});
     }
   }
 
