@@ -1,29 +1,81 @@
-const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.esm.min.js';
+const TESSERACT_ESM_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.esm.min.js';
+const TESSERACT_UMD_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js';
 
 let modulePromise = null;
 let workerPromise = null;
 let progressSink = null;
+let fallbackScriptPromise = null;
 
 function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
 
+function resolveTesseractApi(mod){
+  if(mod?.createWorker) return mod;
+  if(mod?.default?.createWorker) return mod.default;
+  if(mod?.Tesseract?.createWorker) return mod.Tesseract;
+  if(globalThis.Tesseract?.createWorker) return globalThis.Tesseract;
+  return null;
+}
+
+function loadFallbackScript(){
+  if(globalThis.Tesseract?.createWorker) return Promise.resolve(globalThis.Tesseract);
+  if(fallbackScriptPromise) return fallbackScriptPromise;
+
+  fallbackScriptPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = TESSERACT_UMD_URL;
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.onload = () => {
+      if(globalThis.Tesseract?.createWorker) resolve(globalThis.Tesseract);
+      else reject(new Error('Tesseract loaded, but createWorker was not available.'));
+    };
+    script.onerror = () => reject(new Error('Could not download the OCR engine.'));
+    document.head.appendChild(script);
+  });
+
+  return fallbackScriptPromise;
+}
+
+async function loadTesseractApi(){
+  let mod = null;
+  try {
+    mod = await import(TESSERACT_ESM_URL);
+    const api = resolveTesseractApi(mod);
+    if(api) return api;
+  } catch(_err){
+    // Some Android/mobile browsers do not expose the jsDelivr ESM bundle the
+    // same way desktop browsers do. Fall back to the documented global build.
+  }
+
+  const fallback = await loadFallbackScript();
+  const api = resolveTesseractApi(fallback);
+  if(!api) throw new Error('OCR engine loaded, but createWorker is unavailable.');
+  return api;
+}
+
 async function getOcrWorker(onProgress){
   progressSink = onProgress || null;
-  if(!modulePromise) modulePromise = import(TESSERACT_URL);
-  const mod = await modulePromise;
+  if(!modulePromise) modulePromise = loadTesseractApi();
+  const api = await modulePromise;
 
   if(!workerPromise){
-    workerPromise = mod.createWorker('eng', mod.OEM?.LSTM_ONLY ?? 1, {
+    workerPromise = api.createWorker('eng', api.OEM?.LSTM_ONLY ?? 1, {
       logger(message){
         if(progressSink) progressSink(message);
       },
     }).then(async worker => {
       await worker.setParameters({
-        tessedit_pageseg_mode: mod.PSM?.SINGLE_WORD ?? '8',
+        tessedit_pageseg_mode: api.PSM?.SINGLE_WORD ?? '8',
         tessedit_char_whitelist: 'A23456789JQK10',
         preserve_interword_spaces: '0',
         user_defined_dpi: '300',
       });
       return worker;
+    }).catch(err => {
+      // Let a later screenshot retry initialization instead of permanently
+      // caching a rejected worker promise.
+      workerPromise = null;
+      throw err;
     });
   }
   return workerPromise;
