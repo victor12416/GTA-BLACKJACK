@@ -13,7 +13,7 @@ Mobile-first GTA Online Diamond Casino blackjack probability calculator designed
 - Supports GTA splitting rules: one split, equal-value cards, double after split, continued play after split aces, and GTA's 3:2 payout for a two-card 21 created by a split.
 - Split EV uses a fast four-deck composition approximation so pair calculations remain practical on a phone.
 - Heavy probability calculations run in a Web Worker so the mobile UI stays responsive.
-- Accepts optional visible cards from other players at the table.
+- Live UI assumes solo blackjack play: only the dealer upcard and the user's cards are scanned/entered.
 - Screenshot/photo upload now includes an experimental in-browser card reader.
 - The reader finds likely card shapes, OCRs the rank corners, overlays what it detected, and automatically fills the dealer/player ranks when confidence is sufficient.
 - Every auto-read card remains manually editable. The detector deliberately falls back to manual entry instead of silently trusting weak OCR.
@@ -29,11 +29,11 @@ See [`RULES.md`](RULES.md) for the GTA rules and evidence used by the engine.
 
 ## Screenshot reader status
 
-The screenshot reader is **experimental** until it is calibrated against more real screenshots from the exact GTA view/resolution you use. Its current pipeline is:
+The screenshot reader is **experimental** until it is calibrated against more real screenshots from the exact GTA view/resolution you use. The live workflow assumes the user is playing alone, so side-seat cards are intentionally ignored. Its current pipeline is:
 
 1. Downscale the screenshot for fast analysis.
 2. Find bright, neutral connected components that resemble GTA playing cards.
-3. Group likely cards into dealer and player rows.
+3. Restrict recognition to GTA's dealer and solo-player hand zones; ignore side-seat players and unrelated table graphics.
 4. Crop each card's upper-left rank area.
 5. Run a restricted OCR pass for `A 2 3 4 5 6 7 8 9 10 J Q K`.
 6. Convert J/Q/K to the engine's ten-value category.
