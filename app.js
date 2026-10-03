@@ -1,5 +1,5 @@
-import { RANKS, analyzeHand, handValue, formatEV, formatPct } from './blackjack.js';
-import { detectVisibleCards } from './card-detector.js';
+import { RANKS, analyzeHand, handValue, formatEV, formatPct } from './blackjack.js?v=20261003-4';
+import { detectVisibleCards } from './card-detector.js?v=20261003-4';
 
 const state = { playerCards: [], otherCards: [] };
 const $ = (id) => document.getElementById(id);
@@ -41,7 +41,7 @@ let cameraScanId = 0;
 
 try {
   if('Worker' in window){
-    calcWorker = new Worker(new URL('./calculator-worker.js', import.meta.url), {type:'module'});
+    calcWorker = new Worker(new URL('./calculator-worker.js?v=20261003-4', import.meta.url), {type:'module'});
     calcWorker.addEventListener('message', (event) => {
       const {id, analysis, error} = event.data || {};
       if(id !== requestId) return;
