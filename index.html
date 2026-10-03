@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1712">
+  <title>GTA Blackjack Calculator</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <p class="eyebrow">GTA ONLINE • DIAMOND CASINO</p>
+      <h1>Blackjack Probability Calculator</h1>
+      <p class="lede">Exact four-deck finite-shoe math for the cards currently visible on the table.</p>
+    </header>
+
+    <section class="panel screenshot-panel" aria-labelledby="scan-title">
+      <div class="section-head">
+        <div>
+          <p class="step">STEP 1</p>
+          <h2 id="scan-title">Screenshot</h2>
+        </div>
+        <span class="status-badge" id="detectorBadge">MANUAL CONFIRMATION</span>
+      </div>
+
+      <label class="upload-button" for="screenshotInput">Take / choose screenshot</label>
+      <input id="screenshotInput" class="sr-only" type="file" accept="image/*">
+      <div id="previewWrap" class="preview-wrap hidden">
+        <img id="screenshotPreview" alt="Selected GTA blackjack screenshot preview">
+      </div>
+      <p id="detectorStatus" class="muted">Image upload is ready. Automatic card recognition is the next layer; for now confirm the ranks below.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="cards-title">
+      <div class="section-head">
+        <div>
+          <p class="step">STEP 2</p>
+          <h2 id="cards-title">Visible cards</h2>
+        </div>
+        <button id="resetButton" class="text-button" type="button">Reset</button>
+      </div>
+
+      <div class="field-group">
+        <label for="dealerUp">Dealer upcard</label>
+        <select id="dealerUp">
+          <option value="">Choose card</option>
+          <option>A</option><option>2</option><option>3</option><option>4</option><option>5</option>
+          <option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label-row">
+          <span class="field-label">Your cards</span>
+          <span id="handSummary" class="hand-summary">Add at least 2 cards</span>
+        </div>
+        <div id="playerCards" class="card-row" aria-live="polite"></div>
+        <div id="rankGrid" class="rank-grid" aria-label="Add a player card"></div>
+      </div>
+
+      <details class="other-cards">
+        <summary>Other visible table cards (optional)</summary>
+        <p class="muted small">Add cards shown in other players' hands so the finite-shoe calculation removes them too.</p>
+        <div id="otherCards" class="card-row" aria-live="polite"></div>
+        <div id="otherRankGrid" class="rank-grid compact" aria-label="Add another visible card"></div>
+      </details>
+    </section>
+
+    <section class="panel result-panel" aria-labelledby="result-title">
+      <div class="section-head">
+        <div>
+          <p class="step">STEP 3</p>
+          <h2 id="result-title">Best move</h2>
+        </div>
+        <span id="remainingCount" class="remaining-count"></span>
+      </div>
+
+      <div id="emptyState" class="empty-state">Enter the dealer upcard and at least two player cards.</div>
+
+      <div id="results" class="hidden">
+        <div class="recommendation">
+          <span class="recommendation-label">BEST OF CALCULATED ACTIONS</span>
+          <strong id="bestMove">—</strong>
+          <span id="bestEv" class="best-ev"></span>
+        </div>
+        <p id="splitWarning" class="warning hidden"></p>
+        <div id="actionCards" class="action-grid"></div>
+      </div>
+    </section>
+
+    <section class="rules-strip" aria-label="GTA blackjack rules modeled">
+      <span>4 decks</span>
+      <span>Fresh shuffle each hand</span>
+      <span>Dealer stands soft 17</span>
+      <span>3:2 blackjack</span>
+      <span>7-card Charlie</span>
+      <span>No insurance / surrender</span>
+    </section>
+
+    <footer>
+      <p>This tool models GTA Online's blackjack rules and calculates expected value from the visible card composition. It does not guarantee a win.</p>
+    </footer>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
