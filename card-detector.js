@@ -256,11 +256,21 @@ function pointInRect(x,y,rect){
   return x>=rect.x && x<=rect.x+rect.w && y>=rect.y && y<=rect.y+rect.h;
 }
 
+function roleShapeLooksPlausible(card,activeBounds,role){
+  const rw=card.w/activeBounds.w;
+  const rh=card.h/activeBounds.h;
+  if(role==='dealer'){
+    return rw>=0.018 && rw<=0.16 && rh>=0.025 && rh<=0.20;
+  }
+  return rw>=0.030 && rw<=0.17 && rh>=0.055 && rh<=0.18;
+}
+
 function pickRoleRow(candidates,activeBounds,role){
   const region=layoutRect(activeBounds,role,'detect');
   const cards=candidates
     .flatMap(splitWideCandidate)
-    .filter(c=>pointInRect(c.cx,c.cy,region));
+    .filter(c=>pointInRect(c.cx,c.cy,region))
+    .filter(c=>roleShapeLooksPlausible(c,activeBounds,role));
 
   if(!cards.length) return [];
 
@@ -284,7 +294,13 @@ function pickRoleRow(candidates,activeBounds,role){
     return aScore-bScore;
   })[0];
 
-  return (best?.cards||[]).sort((a,b)=>a.cx-b.cx);
+  if(!best) return [];
+  const bestRelativeY=(best.cy-activeBounds.y)/activeBounds.h;
+  // If the closest row is still far from where GTA places this hand, do not
+  // trust it. Region OCR is safer than reading thumbnail text or betting boxes.
+  if(Math.abs(bestRelativeY-target)>0.18) return [];
+
+  return best.cards.sort((a,b)=>a.cx-b.cx);
 }
 
 function classifyRows(candidates,width,height,activeBounds){
