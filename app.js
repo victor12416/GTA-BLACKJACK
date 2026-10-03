@@ -1,17 +1,15 @@
-import { RANKS, analyzeHand, handValue, formatEV, formatPct } from './blackjack.js?v=20261003-6';
+import { RANKS, analyzeHand, handValue, formatEV, formatPct } from './blackjack.js?v=20261003-7';
 
 const $ = (id) => document.getElementById(id);
 
 const state = {
   dealerUp: '',
   playerCards: [],
-  target: 'dealer',
 };
 
-const dealerPanel = $('dealerPanel');
-const playerPanel = $('playerPanel');
-const dealerCard = $('dealerCard');
-const dealerHint = $('dealerHint');
+const dealerValue = $('dealerValue');
+const dealerGrid = $('dealerGrid');
+const playerGrid = $('playerGrid');
 const playerCardsEl = $('playerCards');
 const handSummary = $('handSummary');
 const resultPanel = $('resultPanel');
@@ -21,15 +19,13 @@ const bestMove = $('bestMove');
 const bestProbabilities = $('bestProbabilities');
 const actionEvs = $('actionEvs');
 const resultNote = $('resultNote');
-const entryTarget = $('entryTarget');
-const switchTargetButton = $('switchTargetButton');
 
 let requestId = 0;
 let calcWorker = null;
 
 try {
   if ('Worker' in window) {
-    calcWorker = new Worker(new URL('./calculator-worker.js?v=20261003-6', import.meta.url), { type: 'module' });
+    calcWorker = new Worker(new URL('./calculator-worker.js?v=20261003-7', import.meta.url), { type: 'module' });
     calcWorker.addEventListener('message', (event) => {
       const { id, analysis, error } = event.data || {};
       if (id !== requestId) return;
@@ -45,140 +41,116 @@ try {
   calcWorker = null;
 }
 
-function vibrate(ms = 12) {
+function vibrate(ms = 10) {
   try { navigator.vibrate?.(ms); } catch {}
 }
 
-function setTarget(target) {
-  if (target === 'player' && !state.dealerUp) target = 'dealer';
-  state.target = target;
-  renderStatic();
+function createRankButton(rank, onClick) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'rank-button';
+  button.textContent = rank;
+  button.dataset.rank = rank;
+  button.addEventListener('click', onClick);
+  return button;
 }
 
-function addRank(rank) {
-  vibrate();
-
-  if (state.target === 'dealer') {
-    state.dealerUp = rank;
-    state.target = 'player';
-  } else if (state.playerCards.length < 7) {
-    state.playerCards.push(rank);
+function buildDealerGrid() {
+  for (const rank of RANKS) {
+    dealerGrid.appendChild(createRankButton(rank, () => {
+      state.dealerUp = rank;
+      vibrate(10);
+      render();
+    }));
   }
+}
 
-  render();
+function buildPlayerGrid() {
+  for (const rank of RANKS) {
+    playerGrid.appendChild(createRankButton(rank, () => {
+      if (state.playerCards.length >= 7) return;
+      state.playerCards.push(rank);
+      vibrate(10);
+      render();
+    }));
+  }
+}
+
+function updateDealerButtons() {
+  for (const button of dealerGrid.querySelectorAll('.rank-button')) {
+    button.classList.toggle('selected', button.dataset.rank === state.dealerUp);
+  }
+  dealerValue.textContent = state.dealerUp || '—';
 }
 
 function removePlayerCard(index) {
-  if (index < 0 || index >= state.playerCards.length) return;
   state.playerCards.splice(index, 1);
-  state.target = state.dealerUp ? 'player' : 'dealer';
   vibrate(8);
   render();
-}
-
-function undo() {
-  vibrate(8);
-  if (state.playerCards.length) {
-    state.playerCards.pop();
-    state.target = 'player';
-  } else if (state.dealerUp) {
-    state.dealerUp = '';
-    state.target = 'dealer';
-  }
-  render();
-}
-
-function newHand() {
-  requestId++;
-  state.dealerUp = '';
-  state.playerCards.length = 0;
-  state.target = 'dealer';
-  vibrate(18);
-  render();
-}
-
-function handSummaryText() {
-  if (!state.dealerUp) return 'Waiting for dealer';
-  if (!state.playerCards.length) return 'Tap your first card';
-  if (state.playerCards.length < 2) return 'Tap your second card';
-
-  const h = handValue(state.playerCards);
-  if (h.bust) return `Bust • ${h.total}`;
-  if (h.blackjack) return 'Blackjack';
-  if (h.charlie) return `7-card Charlie • ${h.total}`;
-  return `${h.soft ? 'Soft' : 'Hard'} ${h.total} • ${state.playerCards.length} cards`;
 }
 
 function renderPlayerCards() {
   playerCardsEl.replaceChildren();
 
   if (!state.playerCards.length) {
-    playerCardsEl.textContent = '—';
+    const empty = document.createElement('span');
+    empty.className = 'empty-hand';
+    empty.textContent = 'No cards yet';
+    playerCardsEl.appendChild(empty);
     return;
   }
 
   state.playerCards.forEach((rank, index) => {
-    const card = document.createElement('span');
-    card.className = 'mini-card';
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'card-chip';
     card.textContent = rank;
-    card.setAttribute('role', 'button');
-    card.setAttribute('tabindex', '0');
-    card.setAttribute('aria-label', `Remove player card ${rank}`);
-    card.addEventListener('click', (event) => {
-      event.stopPropagation();
-      removePlayerCard(index);
-    });
-    card.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        event.stopPropagation();
-        removePlayerCard(index);
-      }
-    });
+    card.title = 'Tap to remove';
+    card.setAttribute('aria-label', `Remove ${rank} from your hand`);
+    card.addEventListener('click', () => removePlayerCard(index));
     playerCardsEl.appendChild(card);
   });
 }
 
-function renderStatic() {
-  dealerCard.textContent = state.dealerUp || '?';
-  dealerHint.textContent = state.dealerUp ? 'Tap to edit dealer' : 'Tap a rank below';
-  handSummary.textContent = handSummaryText();
-  renderPlayerCards();
+function updateHandSummary() {
+  if (state.playerCards.length < 2) {
+    handSummary.textContent = state.playerCards.length ? 'Add 1 more card' : 'Add 2 cards';
+    return;
+  }
 
-  dealerPanel.classList.toggle('active', state.target === 'dealer');
-  playerPanel.classList.toggle('active', state.target === 'player');
-  entryTarget.textContent = state.target === 'dealer' ? 'DEALER CARD' : 'YOUR NEXT CARD';
-  switchTargetButton.textContent = state.target === 'dealer' ? 'ENTER YOUR CARDS' : 'EDIT DEALER';
-  switchTargetButton.disabled = !state.dealerUp && state.target === 'dealer';
+  const hand = handValue(state.playerCards);
+  if (hand.bust) handSummary.textContent = `BUST • ${hand.total}`;
+  else if (hand.blackjack) handSummary.textContent = 'BLACKJACK';
+  else if (hand.charlie) handSummary.textContent = `7-CARD CHARLIE • ${hand.total}`;
+  else handSummary.textContent = `${hand.soft ? 'SOFT' : 'HARD'} ${hand.total}`;
 }
 
-function clearResult(message, label = 'READY') {
+function clearResult(label, text) {
+  resultPanel.classList.remove('has-result', 'terminal', 'error');
   resultLabel.textContent = label;
   remainingCount.textContent = '';
   bestMove.textContent = '—';
-  bestProbabilities.textContent = message;
+  bestProbabilities.textContent = text;
   actionEvs.replaceChildren();
   resultNote.textContent = '';
-  resultPanel.classList.remove('has-result', 'terminal', 'error');
 }
 
-function renderResults() {
+function renderResult() {
   const id = ++requestId;
 
   if (!state.dealerUp) {
-    clearResult('Dealer first, then your cards.', 'ENTER DEALER CARD');
+    clearResult('ENTER DEALER', 'Choose the dealer showing card.');
     return;
   }
 
   if (state.playerCards.length < 2) {
-    clearResult(
-      state.playerCards.length ? 'Tap your second card.' : 'Tap your first card.',
-      'ENTER YOUR HAND'
-    );
+    clearResult('ENTER YOUR HAND', state.playerCards.length ? 'Add your second card.' : 'Add your first two cards.');
     return;
   }
 
+  resultPanel.classList.remove('terminal', 'error');
   resultLabel.textContent = 'CALCULATING';
+  remainingCount.textContent = '';
   bestMove.textContent = '…';
   bestProbabilities.textContent = 'Running GTA probability tree';
   actionEvs.replaceChildren();
@@ -192,17 +164,6 @@ function renderResults() {
   }, id);
 }
 
-function showCalculationError(message) {
-  resultPanel.classList.add('error');
-  resultPanel.classList.remove('has-result', 'terminal');
-  resultLabel.textContent = 'CHECK HAND';
-  remainingCount.textContent = '';
-  bestMove.textContent = 'ERROR';
-  bestProbabilities.textContent = message || 'Could not calculate this hand.';
-  actionEvs.replaceChildren();
-  resultNote.textContent = '';
-}
-
 function actionShortName(name) {
   return ({ HIT: 'H', STAND: 'S', DOUBLE: 'D', SPLIT: 'P' })[name] || name[0] || '?';
 }
@@ -214,8 +175,8 @@ function showAnalysis(analysis) {
   resultPanel.classList.remove('error');
 
   if (analysis.terminal) {
-    resultPanel.classList.add('terminal');
     resultPanel.classList.remove('has-result');
+    resultPanel.classList.add('terminal');
     resultLabel.textContent = 'HAND RESULT';
     bestMove.textContent = analysis.terminal;
     bestProbabilities.textContent = 'No decision needed.';
@@ -224,8 +185,8 @@ function showAnalysis(analysis) {
     return;
   }
 
-  resultPanel.classList.add('has-result');
   resultPanel.classList.remove('terminal');
+  resultPanel.classList.add('has-result');
   resultLabel.textContent = 'BEST MOVE';
   bestMove.textContent = analysis.best;
 
@@ -238,14 +199,25 @@ function showAnalysis(analysis) {
     const pill = document.createElement('span');
     pill.className = `ev-pill${name === analysis.best ? ' best' : ''}`;
     pill.innerHTML = `<b>${actionShortName(name)}</b> ${formatEV(metric.ev)}`;
-    pill.title = `${name} expected value ${formatEV(metric.ev)}`;
+    pill.title = `${name}: EV ${formatEV(metric.ev)}`;
     actionEvs.appendChild(pill);
   }
 
   resultNote.textContent =
     analysis.splitAvailable && analysis.splitNote
-      ? 'P = Split • split EV is the fast GTA four-deck estimate'
-      : 'EV shown in original-bet units';
+      ? 'P = Split • split EV uses the fast GTA four-deck estimate'
+      : 'Tap another card below immediately after every HIT';
+}
+
+function showCalculationError(message) {
+  resultPanel.classList.remove('has-result', 'terminal');
+  resultPanel.classList.add('error');
+  resultLabel.textContent = 'CHECK HAND';
+  remainingCount.textContent = '';
+  bestMove.textContent = 'ERROR';
+  bestProbabilities.textContent = message || 'Could not calculate this hand.';
+  actionEvs.replaceChildren();
+  resultNote.textContent = '';
 }
 
 function calculate(input, id) {
@@ -256,39 +228,47 @@ function calculate(input, id) {
 
   setTimeout(() => {
     if (id !== requestId) return;
-    try { showAnalysis(analyzeHand(input)); }
-    catch (err) { showCalculationError(err?.message); }
+    try {
+      showAnalysis(analyzeHand(input));
+    } catch (err) {
+      showCalculationError(err?.message);
+    }
   }, 0);
 }
 
 function render() {
-  renderStatic();
-  renderResults();
+  updateDealerButtons();
+  renderPlayerCards();
+  updateHandSummary();
+  renderResult();
 }
 
-function buildRankGrid() {
-  const grid = $('rankGrid');
-  for (const rank of RANKS) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'rank-button';
-    button.textContent = rank;
-    button.setAttribute('aria-label', `Enter ${rank}`);
-    button.addEventListener('click', () => addRank(rank));
-    grid.appendChild(button);
-  }
+function undoLastCard() {
+  if (!state.playerCards.length) return;
+  state.playerCards.pop();
+  vibrate(8);
+  render();
 }
 
-dealerPanel.addEventListener('click', () => setTarget('dealer'));
-playerPanel.addEventListener('click', () => setTarget('player'));
+function clearPlayerHand() {
+  requestId++;
+  state.playerCards.length = 0;
+  vibrate(12);
+  render();
+}
 
-switchTargetButton.addEventListener('click', () => {
-  if (state.target === 'dealer') setTarget('player');
-  else setTarget('dealer');
-});
+function newHand() {
+  requestId++;
+  state.dealerUp = '';
+  state.playerCards.length = 0;
+  vibrate(16);
+  render();
+}
 
-$('undoButton').addEventListener('click', undo);
+$('undoButton').addEventListener('click', undoLastCard);
+$('clearPlayerButton').addEventListener('click', clearPlayerHand);
 $('newHandButton').addEventListener('click', newHand);
 
-buildRankGrid();
+buildDealerGrid();
+buildPlayerGrid();
 render();
