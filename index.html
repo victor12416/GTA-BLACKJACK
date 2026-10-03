@@ -19,18 +19,20 @@
       <div class="section-head">
         <div>
           <p class="step">STEP 1</p>
-          <h2 id="scan-title">Screenshot</h2>
+          <h2 id="scan-title">Scan the table</h2>
         </div>
         <span class="status-badge" id="detectorBadge">AUTO + CONFIRM</span>
       </div>
 
-      <label class="upload-button" for="screenshotInput">Take / choose screenshot</label>
+      <button id="startCameraButton" class="camera-launch-button" type="button">Open camera scanner</button>
+      <div class="scan-divider"><span>or</span></div>
+      <label class="upload-button secondary-upload" for="screenshotInput">Choose screenshot</label>
       <input id="screenshotInput" class="sr-only" type="file" accept="image/*">
       <div id="previewWrap" class="preview-wrap hidden">
         <img id="screenshotPreview" alt="Selected GTA blackjack screenshot preview">
         <canvas id="detectorOverlay" aria-hidden="true"></canvas>
       </div>
-      <p id="detectorStatus" class="muted" aria-live="polite">Choose a GTA blackjack screenshot or photo. The experimental reader will try to fill the ranks automatically, then you can correct anything it misreads.</p>
+      <p id="detectorStatus" class="muted" aria-live="polite">Use the camera scanner or choose a GTA blackjack screenshot. Low-confidence OCR will never auto-fill the hand.</p>
       <p class="privacy-note">Image pixels stay in your browser. The first auto-scan downloads the OCR engine and English recognition data.</p>
     </section>
 
@@ -104,6 +106,36 @@
       <p>This tool models GTA Online's blackjack rules and calculates expected value from the visible card composition. It does not guarantee a win.</p>
     </footer>
   </main>
+
+  <section id="cameraMode" class="camera-mode hidden" aria-label="GTA blackjack camera scanner">
+    <div class="camera-stage">
+      <video id="cameraVideo" autoplay playsinline muted></video>
+      <canvas id="cameraFreeze" class="camera-freeze hidden"></canvas>
+      <canvas id="cameraOverlay" class="camera-overlay" aria-hidden="true"></canvas>
+
+      <div class="camera-guides" aria-hidden="true">
+        <div class="camera-guide dealer-guide"><span>DEALER</span></div>
+        <div class="camera-guide player-guide"><span>YOUR CARDS</span></div>
+      </div>
+
+      <div class="camera-topbar">
+        <button id="cameraCloseButton" class="camera-icon-button" type="button" aria-label="Close camera">×</button>
+        <div id="cameraStatus" class="camera-status">Point at the GTA blackjack table</div>
+      </div>
+
+      <div id="cameraResultHud" class="camera-result-hud">
+        <div id="cameraHandText" class="camera-hand-text">Align the dealer and your cards inside the guides.</div>
+        <strong id="cameraMoveText" class="camera-move-text"></strong>
+        <div id="cameraEvText" class="camera-ev-text"></div>
+      </div>
+
+      <div class="camera-controls">
+        <button id="cameraRetakeButton" class="camera-secondary-button hidden" type="button">Retake</button>
+        <button id="cameraCaptureButton" class="camera-shutter" type="button" aria-label="Capture blackjack table"><span></span></button>
+        <button id="cameraUseManualButton" class="camera-secondary-button hidden" type="button">Manual</button>
+      </div>
+    </div>
+  </section>
 
   <script type="module" src="app.js"></script>
 </body>
