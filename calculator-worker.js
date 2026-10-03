@@ -1,11 +1,11 @@
-import { analyzeHand } from './blackjack.js?v=20261003-4';
+import { analyzeHand } from './blackjack.js?v=20261003-6';
 
 self.addEventListener('message', (event) => {
-  const {id,input} = event.data || {};
+  const { id, input } = event.data || {};
   try {
     const analysis = analyzeHand(input);
-    self.postMessage({id,analysis});
-  } catch(err){
-    self.postMessage({id,error:err?.message || 'Could not calculate this hand.'});
+    self.postMessage({ id, analysis });
+  } catch (err) {
+    self.postMessage({ id, error: err?.message || 'Could not calculate this hand.' });
   }
 });
