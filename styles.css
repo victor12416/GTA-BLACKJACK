@@ -155,3 +155,246 @@ footer { color: #718379; font-size: .77rem; line-height: 1.45; padding: 10px 4px
   .panel { padding: 20px; }
   .action-grid { grid-template-columns: repeat(3,1fr); }
 }
+
+
+/* Camera-first scanner */
+.camera-launch-button {
+  width: 100%;
+  min-height: 58px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--accent);
+  color: #06110b;
+  font-weight: 950;
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+.scan-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+  color: #6f8277;
+  font-size: .76rem;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  font-weight: 800;
+}
+.scan-divider::before,
+.scan-divider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: var(--border);
+}
+.secondary-upload {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+body.camera-open { overflow: hidden; }
+
+.camera-mode {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #000;
+  color: #fff;
+  width: 100vw;
+  height: 100dvh;
+}
+.camera-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+}
+.camera-stage video,
+.camera-freeze,
+.camera-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.camera-stage video { z-index: 0; }
+.camera-freeze {
+  z-index: 1;
+  background: #000;
+}
+.camera-overlay {
+  z-index: 4;
+  pointer-events: none;
+}
+.camera-guides {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+.camera-guide {
+  position: absolute;
+  border: 2px dashed rgba(255,255,255,.48);
+  border-radius: 14px;
+}
+.camera-guide span {
+  position: absolute;
+  top: -28px;
+  left: 0;
+  padding: 4px 7px;
+  border-radius: 7px;
+  background: rgba(0,0,0,.62);
+  color: rgba(255,255,255,.9);
+  font-size: .7rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+.dealer-guide {
+  left: 36%;
+  top: 18%;
+  width: 32%;
+  height: 39%;
+}
+.player-guide {
+  left: 34%;
+  top: 48%;
+  width: 36%;
+  height: 39%;
+}
+.camera-topbar {
+  position: absolute;
+  z-index: 6;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 14px 12px;
+  background: linear-gradient(to bottom, rgba(0,0,0,.78), rgba(0,0,0,0));
+}
+.camera-icon-button {
+  width: 48px;
+  height: 48px;
+  min-height: 48px;
+  border: 1px solid rgba(255,255,255,.25);
+  border-radius: 999px;
+  background: rgba(0,0,0,.55);
+  color: #fff;
+  font-size: 2rem;
+  line-height: 1;
+}
+.camera-status {
+  min-width: 0;
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: rgba(0,0,0,.6);
+  color: #eef6f1;
+  font-size: .82rem;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.camera-result-hud {
+  position: absolute;
+  z-index: 6;
+  left: 12px;
+  right: 12px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 112px);
+  padding: 13px 15px;
+  border: 1px solid rgba(121,230,169,.42);
+  border-radius: 16px;
+  background: rgba(4,14,9,.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  text-align: center;
+}
+.camera-hand-text {
+  color: #d8e5dd;
+  font-size: .9rem;
+  font-weight: 700;
+}
+.camera-move-text {
+  display: block;
+  margin-top: 3px;
+  color: #bfffd8;
+  font-size: clamp(2rem, 10vw, 4.5rem);
+  line-height: .95;
+  letter-spacing: -.03em;
+}
+.camera-ev-text {
+  margin-top: 5px;
+  color: #c7d7ce;
+  font-size: .8rem;
+  line-height: 1.35;
+}
+.camera-controls {
+  position: absolute;
+  z-index: 7;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 100px;
+  display: grid;
+  grid-template-columns: 1fr 92px 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 18px calc(env(safe-area-inset-bottom, 0px) + 12px);
+  background: linear-gradient(to top, rgba(0,0,0,.88), rgba(0,0,0,0));
+}
+.camera-shutter {
+  justify-self: center;
+  width: 78px;
+  height: 78px;
+  min-height: 78px;
+  padding: 0;
+  border: 5px solid #fff;
+  border-radius: 999px;
+  background: rgba(255,255,255,.22);
+}
+.camera-shutter span {
+  display: block;
+  width: 58px;
+  height: 58px;
+  margin: auto;
+  border-radius: 999px;
+  background: #fff;
+}
+.camera-secondary-button {
+  min-height: 46px;
+  border: 1px solid rgba(255,255,255,.26);
+  border-radius: 999px;
+  background: rgba(0,0,0,.58);
+  color: #fff;
+  padding: 0 14px;
+  font-weight: 850;
+}
+#cameraRetakeButton { justify-self: start; }
+#cameraUseManualButton { justify-self: end; }
+
+@media (orientation: landscape) {
+  .camera-result-hud {
+    left: auto;
+    width: min(390px, 34vw);
+    top: calc(env(safe-area-inset-top, 0px) + 78px);
+    right: 14px;
+    bottom: auto;
+    text-align: left;
+  }
+  .camera-controls {
+    min-height: 86px;
+    grid-template-columns: 1fr 84px 1fr;
+  }
+  .camera-shutter {
+    width: 68px;
+    height: 68px;
+    min-height: 68px;
+  }
+  .camera-shutter span {
+    width: 50px;
+    height: 50px;
+  }
+}
