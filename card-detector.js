@@ -198,34 +198,100 @@ function splitWideCandidate(c){
   }));
 }
 
-function classifyRows(candidates,width,height){
-  const central=candidates
-    .flatMap(splitWideCandidate)
-    .filter(c=>c.cx/width>0.14 && c.cx/width<0.86 && c.cy/height>0.24 && c.cy/height<0.88);
+const GTA_LAYOUT = {
+  // Ratios are relative to the active gameplay image after black letterbox bars
+  // are removed. These bounds were calibrated from several GTA Online first-
+  // person blackjack screenshots with green and purple felt.
+  dealer: {
+    detect:{x:0.30,y:0.16,w:0.42,h:0.43},
+    ocr:{x:0.34,y:0.18,w:0.36,h:0.39},
+    targetY:0.36,
+  },
+  player: {
+    detect:{x:0.28,y:0.45,w:0.46,h:0.44},
+    ocr:{x:0.33,y:0.48,w:0.39,h:0.39},
+    targetY:0.67,
+  },
+};
 
-  if(!central.length) return {dealer:[],player:[]};
+function findActiveContentBounds(ctx,width,height){
+  const image=ctx.getImageData(0,0,width,height);
+  const data=image.data;
+  const sampleStep=Math.max(1,Math.floor(width/220));
+
+  function rowIsLetterbox(y){
+    let dark=0,total=0;
+    for(let x=0;x<width;x+=sampleStep){
+      const p=(y*width+x)*4;
+      total++;
+      if(data[p]<18 && data[p+1]<18 && data[p+2]<18) dark++;
+    }
+    return total>0 && dark/total>=0.94;
+  }
+
+  let top=0;
+  while(top<height*0.28 && rowIsLetterbox(top)) top++;
+  let bottom=height-1;
+  while(bottom>height*0.72 && rowIsLetterbox(bottom)) bottom--;
+
+  // Ignore tiny dark edges; only treat meaningful bars as letterboxing.
+  if(top<height*0.025) top=0;
+  if((height-1-bottom)<height*0.025) bottom=height-1;
+  if(bottom<=top) return {x:0,y:0,w:width,h:height};
+
+  return {x:0,y:top,w:width,h:bottom-top+1};
+}
+
+function layoutRect(activeBounds,role,kind='detect'){
+  const spec=GTA_LAYOUT[role][kind];
+  return {
+    x:activeBounds.x+activeBounds.w*spec.x,
+    y:activeBounds.y+activeBounds.h*spec.y,
+    w:activeBounds.w*spec.w,
+    h:activeBounds.h*spec.h,
+  };
+}
+
+function pointInRect(x,y,rect){
+  return x>=rect.x && x<=rect.x+rect.w && y>=rect.y && y<=rect.y+rect.h;
+}
+
+function pickRoleRow(candidates,activeBounds,role){
+  const region=layoutRect(activeBounds,role,'detect');
+  const cards=candidates
+    .flatMap(splitWideCandidate)
+    .filter(c=>pointInRect(c.cx,c.cy,region));
+
+  if(!cards.length) return [];
+
   const rows=[];
-  const tolerance=Math.max(18,height*0.065);
-  for(const card of central.sort((a,b)=>a.cy-b.cy)){
+  const tolerance=Math.max(12,activeBounds.h*0.055);
+  for(const card of [...cards].sort((a,b)=>a.cy-b.cy)){
     let row=rows.find(r=>Math.abs(r.cy-card.cy)<=tolerance);
     if(!row){ row={cy:card.cy,cards:[]}; rows.push(row); }
     row.cards.push(card);
     row.cy=row.cards.reduce((s,c)=>s+c.cy,0)/row.cards.length;
   }
 
-  const dealerRows=rows.filter(r=>r.cy/height>=0.26 && r.cy/height<=0.60);
-  const playerRows=rows.filter(r=>r.cy/height>=0.50 && r.cy/height<=0.86);
-  const dealerRow=dealerRows.sort((a,b)=>Math.abs(a.cy/height-0.46)-Math.abs(b.cy/height-0.46))[0];
-  let playerRow=playerRows
-    .filter(r=>r!==dealerRow)
-    .sort((a,b)=>Math.abs(a.cy/height-0.68)-Math.abs(b.cy/height-0.68))[0];
+  const target=GTA_LAYOUT[role].targetY;
+  const best=rows.sort((a,b)=>{
+    const ay=(a.cy-activeBounds.y)/activeBounds.h;
+    const by=(b.cy-activeBounds.y)/activeBounds.h;
+    // Prefer rows near the expected GTA seat location; a small bonus for
+    // multiple card-shaped components helps overlapping/fanned hands.
+    const aScore=Math.abs(ay-target)-Math.min(a.cards.length,4)*0.025;
+    const bScore=Math.abs(by-target)-Math.min(b.cards.length,4)*0.025;
+    return aScore-bScore;
+  })[0];
 
-  if(!playerRow && rows.length>1){
-    playerRow=[...rows].sort((a,b)=>b.cy-a.cy).find(r=>r!==dealerRow);
-  }
+  return (best?.cards||[]).sort((a,b)=>a.cx-b.cx);
+}
+
+function classifyRows(candidates,width,height,activeBounds){
+  const bounds=activeBounds||{x:0,y:0,w:width,h:height};
   return {
-    dealer:(dealerRow?.cards||[]).sort((a,b)=>a.cx-b.cx),
-    player:(playerRow?.cards||[]).sort((a,b)=>a.cx-b.cx),
+    dealer:pickRoleRow(candidates,bounds,'dealer'),
+    player:pickRoleRow(candidates,bounds,'player'),
   };
 }
 
@@ -270,14 +336,13 @@ function extractOcrRanks(text){
   return matches.map(token=>'JQK'.includes(token)?'10':token);
 }
 
-function cropHandRegionCanvas(sourceCanvas,role){
-  const roi=role==='dealer'
-    ? {x:0.26,y:0.28,w:0.48,h:0.33}
-    : {x:0.22,y:0.52,w:0.56,h:0.33};
-  const sx=Math.round(sourceCanvas.width*roi.x);
-  const sy=Math.round(sourceCanvas.height*roi.y);
-  const sw=Math.round(sourceCanvas.width*roi.w);
-  const sh=Math.round(sourceCanvas.height*roi.h);
+function cropHandRegionCanvas(sourceCanvas,role,activeBounds){
+  const bounds=activeBounds||{x:0,y:0,w:sourceCanvas.width,h:sourceCanvas.height};
+  const px=layoutRect(bounds,role,'ocr');
+  const sx=clamp(Math.round(px.x),0,sourceCanvas.width-1);
+  const sy=clamp(Math.round(px.y),0,sourceCanvas.height-1);
+  const sw=clamp(Math.round(px.w),8,sourceCanvas.width-sx);
+  const sh=clamp(Math.round(px.h),8,sourceCanvas.height-sy);
   const out=makeCanvas(Math.max(420,sw*2),Math.max(220,sh*2));
   const ctx=out.getContext('2d',{willReadFrequently:true});
   ctx.fillStyle='#fff'; ctx.fillRect(0,0,out.width,out.height);
@@ -288,17 +353,27 @@ function cropHandRegionCanvas(sourceCanvas,role){
     const r=id.data[i],g=id.data[i+1],b=id.data[i+2];
     const l=0.2126*r+0.7152*g+0.0722*b;
     const greenFelt=(g>r*1.08 && g>b*1.05 && g>55);
+    const purpleFelt=(r>35 && b>35 && Math.abs(r-b)<70 && g<Math.max(r,b)*0.95);
     const redInk=(r>g*1.22 && r>b*1.16 && r>75);
-    const darkInk=l<125 && !greenFelt;
+    const darkInk=l<125 && !greenFelt && !purpleFelt;
     const v=(redInk||darkInk)?0:255;
     id.data[i]=v; id.data[i+1]=v; id.data[i+2]=v; id.data[i+3]=255;
   }
   ctx.putImageData(id,0,0);
+
+  // Overlay rectangles are normalized to the complete screenshot, not to the
+  // cropped active area.
+  const roi={
+    x:sx/sourceCanvas.width,
+    y:sy/sourceCanvas.height,
+    w:sw/sourceCanvas.width,
+    h:sh/sourceCanvas.height,
+  };
   return {canvas:out,roi};
 }
 
-async function readHandRegion(worker,sourceCanvas,role){
-  const {canvas,roi}=cropHandRegionCanvas(sourceCanvas,role);
+async function readHandRegion(worker,sourceCanvas,role,activeBounds){
+  const {canvas,roi}=cropHandRegionCanvas(sourceCanvas,role,activeBounds);
   let result;
   await worker.setParameters({tessedit_pageseg_mode:'11'}); // sparse text
   try {
@@ -333,9 +408,10 @@ export async function detectVisibleCards(image,{onProgress}={}){
 
   onProgress?.({stage:'detect',message:'Finding card shapes…',progress:0.05});
   const {canvas,ctx}=prepareAnalysisCanvas(image);
+  const activeBounds=findActiveContentBounds(ctx,canvas.width,canvas.height);
   const raw=findBrightComponents(ctx,canvas.width,canvas.height);
   const candidates=dedupeCandidates(raw);
-  const rows=classifyRows(candidates,canvas.width,canvas.height);
+  const rows=classifyRows(candidates,canvas.width,canvas.height,activeBounds);
 
   onProgress?.({stage:'ocr',message:'Loading local OCR…',progress:0.12});
   const worker=await getOcrWorker(m=>{
@@ -369,7 +445,7 @@ export async function detectVisibleCards(image,{onProgress}={}){
   // If the card-shape pass is incomplete, OCR the whole expected hand region as a second pass.
   if(!dealerUp){
     onProgress?.({stage:'ocr',message:'Reading the dealer hand region…',progress:0.74});
-    const region=await readHandRegion(worker,canvas,'dealer');
+    const region=await readHandRegion(worker,canvas,'dealer',activeBounds);
     if(region.ranks.length){
       dealerUp=region.ranks[0];
       regionConfidences.push(region.confidence);
@@ -378,7 +454,7 @@ export async function detectVisibleCards(image,{onProgress}={}){
   }
   if(playerCards.length<2){
     onProgress?.({stage:'ocr',message:'Reading the full player hand region…',progress:0.84});
-    const region=await readHandRegion(worker,canvas,'player');
+    const region=await readHandRegion(worker,canvas,'player',activeBounds);
     if(region.ranks.length>=2){
       playerCards=region.ranks.slice(0,7);
       regionConfidences.push(region.confidence);
