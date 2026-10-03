@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b1712">\n  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">\n  <meta http-equiv="Pragma" content="no-cache">\n  <meta http-equiv="Expires" content="0">
   <title>GTA Blackjack Calculator</title>
-  <link rel="stylesheet" href="styles.css?v=20261003-4">
+  <link rel="stylesheet" href="styles.css?v=20261003-5">
 </head>
 <body>
   <main class="shell">
     <header class="hero">
       <p class="eyebrow">GTA ONLINE • DIAMOND CASINO</p>
       <h1>Blackjack Probability Calculator</h1>
-      <p class="lede">Exact four-deck finite-shoe math for the cards currently visible on the table.</p>
+      <p class="lede">Solo-play GTA blackjack scanner with four-deck finite-shoe probability math.</p>
     </header>
 
     <section class="panel screenshot-panel" aria-labelledby="scan-title">
@@ -32,7 +32,7 @@
         <img id="screenshotPreview" alt="Selected GTA blackjack screenshot preview">
         <canvas id="detectorOverlay" aria-hidden="true"></canvas>
       </div>
-      <p id="detectorStatus" class="muted" aria-live="polite">Use the camera scanner or choose a GTA blackjack screenshot. Low-confidence OCR will never auto-fill the hand.</p>
+      <p id="detectorStatus" class="muted" aria-live="polite">Use the camera scanner or choose a GTA blackjack screenshot. The scanner only targets your hand and the dealer upcard.</p>
       <p class="privacy-note">Image pixels stay in your browser. The first auto-scan downloads the OCR engine and English recognition data.</p>
     </section>
 
@@ -63,12 +63,6 @@
         <div id="rankGrid" class="rank-grid" aria-label="Add a player card"></div>
       </div>
 
-      <details class="other-cards">
-        <summary>Other visible table cards (optional)</summary>
-        <p class="muted small">Add cards shown in other players' hands so the finite-shoe calculation removes them too.</p>
-        <div id="otherCards" class="card-row" aria-live="polite"></div>
-        <div id="otherRankGrid" class="rank-grid compact" aria-label="Add another visible card"></div>
-      </details>
     </section>
 
     <section class="panel result-panel" aria-labelledby="result-title">
@@ -137,6 +131,6 @@
     </div>
   </section>
 
-  <script type="module" src="app.js?v=20261003-4"></script>
+  <script type="module" src="app.js?v=20261003-5"></script>
 </body>
 </html>
