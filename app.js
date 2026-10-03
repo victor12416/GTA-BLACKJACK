@@ -19,10 +19,25 @@ const detectorStatus = $('detectorStatus');
 const detectorBadge = $('detectorBadge');
 const detectorOverlay = $('detectorOverlay');
 
+const cameraMode = $('cameraMode');
+const cameraVideo = $('cameraVideo');
+const cameraFreeze = $('cameraFreeze');
+const cameraOverlay = $('cameraOverlay');
+const cameraStatus = $('cameraStatus');
+const cameraHandText = $('cameraHandText');
+const cameraMoveText = $('cameraMoveText');
+const cameraEvText = $('cameraEvText');
+const cameraCaptureButton = $('cameraCaptureButton');
+const cameraRetakeButton = $('cameraRetakeButton');
+const cameraUseManualButton = $('cameraUseManualButton');
+
 let requestId = 0;
 let scanId = 0;
 let lastDetectionBoxes = [];
 let calcWorker = null;
+let cameraStream = null;
+let cameraCaptured = false;
+let cameraScanId = 0;
 
 try {
   if('Worker' in window){
@@ -159,7 +174,175 @@ async function runScreenshotDetection(img,id){
   }
 }
 
+
+function cameraIsOpen(){
+  return cameraMode && !cameraMode.classList.contains('hidden');
+}
+
+function resetCameraHud(){
+  cameraCaptured = false;
+  cameraFreeze?.classList.add('hidden');
+  if(cameraOverlay){
+    const ctx=cameraOverlay.getContext('2d');
+    ctx?.clearRect(0,0,cameraOverlay.width,cameraOverlay.height);
+  }
+  if(cameraStatus) cameraStatus.textContent = 'Point at the GTA blackjack table';
+  if(cameraHandText) cameraHandText.textContent = 'Align the dealer and your cards inside the guides.';
+  if(cameraMoveText) cameraMoveText.textContent = '';
+  if(cameraEvText) cameraEvText.textContent = '';
+  cameraRetakeButton?.classList.add('hidden');
+  cameraUseManualButton?.classList.add('hidden');
+  cameraCaptureButton?.classList.remove('hidden');
+}
+
+function drawCameraOverlay(boxes=[]){
+  if(!cameraOverlay || !cameraFreeze?.width || !cameraFreeze?.height) return;
+  cameraOverlay.width = cameraFreeze.width;
+  cameraOverlay.height = cameraFreeze.height;
+  const ctx=cameraOverlay.getContext('2d');
+  const w=cameraOverlay.width, h=cameraOverlay.height;
+  ctx.clearRect(0,0,w,h);
+  ctx.lineWidth=Math.max(4,w/360);
+  ctx.font=`700 ${Math.max(26,Math.round(w/32))}px system-ui`;
+  ctx.textBaseline='top';
+
+  for(const box of boxes){
+    const x=box.x*w, y=box.y*h, bw=box.w*w, bh=box.h*h;
+    const dealer=box.role==='dealer';
+    ctx.strokeStyle=dealer?'#ffd27a':'#79e6a9';
+    ctx.fillStyle=dealer?'#ffd27a':'#79e6a9';
+    ctx.strokeRect(x,y,bw,bh);
+    const label=`${dealer?'D':'YOU'} ${box.rank||'?'}`;
+    const tw=ctx.measureText(label).width+18;
+    const th=Math.max(34,Math.round(w/28));
+    ctx.fillRect(x,Math.max(0,y-th),tw,th);
+    ctx.fillStyle='#07110c';
+    ctx.fillText(label,x+9,Math.max(0,y-th)+3);
+  }
+}
+
+async function startCamera(){
+  if(!navigator.mediaDevices?.getUserMedia){
+    detectorStatus.textContent = 'This browser does not expose camera access. Use Choose screenshot instead.';
+    return;
+  }
+
+  try {
+    cameraStatus.textContent = 'Requesting rear camera…';
+    cameraMode.classList.remove('hidden');
+    document.body.classList.add('camera-open');
+    resetCameraHud();
+
+    if(!cameraStream){
+      cameraStream = await navigator.mediaDevices.getUserMedia({
+        audio:false,
+        video:{
+          facingMode:{ideal:'environment'},
+          width:{ideal:1920},
+          height:{ideal:1080},
+        }
+      });
+      cameraVideo.srcObject=cameraStream;
+    }
+    await cameraVideo.play();
+    cameraStatus.textContent = 'Point at the GTA blackjack table';
+  } catch(err){
+    stopCamera();
+    detectorStatus.textContent = `Camera unavailable: ${err?.message || 'permission denied'}. You can still choose a screenshot.`;
+  }
+}
+
+function stopCamera(){
+  cameraScanId++;
+  cameraStream?.getTracks().forEach(track=>track.stop());
+  cameraStream=null;
+  if(cameraVideo) cameraVideo.srcObject=null;
+  cameraMode?.classList.add('hidden');
+  document.body.classList.remove('camera-open');
+  resetCameraHud();
+}
+
+function retakeCamera(){
+  cameraScanId++;
+  resetCameraHud();
+  if(cameraVideo && cameraStream) cameraVideo.play().catch(()=>{});
+}
+
+async function runCameraDetection(id){
+  if(!cameraFreeze) return;
+  cameraStatus.textContent='Finding GTA cards…';
+  cameraHandText.textContent='Analyzing captured frame…';
+  cameraMoveText.textContent='';
+  cameraEvText.textContent='';
+
+  try {
+    const detected=await detectVisibleCards(cameraFreeze,{
+      onProgress(info){
+        if(id!==cameraScanId) return;
+        cameraStatus.textContent=info?.message || 'Analyzing…';
+      }
+    });
+    if(id!==cameraScanId) return;
+
+    drawCameraOverlay(detected.boxes||[]);
+    const pct=Math.round((detected.confidence||0)*100);
+
+    if(!detected.ready){
+      cameraStatus.textContent='LOW CONFIDENCE';
+      cameraHandText.textContent=`${detected.message} (${pct}% confidence)`;
+      cameraMoveText.textContent='RETAKE';
+      cameraEvText.textContent='No move was calculated from this scan.';
+      cameraRetakeButton.classList.remove('hidden');
+      cameraUseManualButton.classList.remove('hidden');
+      cameraCaptureButton.classList.add('hidden');
+      return;
+    }
+
+    state.playerCards.splice(0,state.playerCards.length,...detected.playerCards);
+    state.otherCards.length=0;
+    dealerUp.value=detected.dealerUp || '';
+    cameraStatus.textContent='CARDS FOUND';
+    cameraHandText.textContent=`You: ${detected.playerCards.join(', ')}   Dealer: ${detected.dealerUp}   • ${pct}%`;
+    cameraMoveText.textContent='CALCULATING…';
+    cameraEvText.textContent='Computing the GTA probability tree.';
+    cameraRetakeButton.classList.remove('hidden');
+    cameraUseManualButton.classList.remove('hidden');
+    cameraCaptureButton.classList.add('hidden');
+    render();
+  } catch(err){
+    if(id!==cameraScanId) return;
+    cameraStatus.textContent='SCAN ERROR';
+    cameraHandText.textContent=err?.message || 'Could not analyze this frame.';
+    cameraMoveText.textContent='RETAKE';
+    cameraEvText.textContent='';
+    cameraRetakeButton.classList.remove('hidden');
+    cameraUseManualButton.classList.remove('hidden');
+    cameraCaptureButton.classList.add('hidden');
+  }
+}
+
+function captureCamera(){
+  if(!cameraVideo?.videoWidth || !cameraVideo?.videoHeight || cameraCaptured) return;
+  cameraCaptured=true;
+  const w=cameraVideo.videoWidth;
+  const h=cameraVideo.videoHeight;
+  cameraFreeze.width=w;
+  cameraFreeze.height=h;
+  const ctx=cameraFreeze.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(cameraVideo,0,0,w,h);
+  cameraFreeze.classList.remove('hidden');
+  cameraCaptureButton.classList.add('hidden');
+  cameraStatus.textContent='Captured';
+  const id=++cameraScanId;
+  runCameraDetection(id);
+}
+
 function showCalculationError(message){
+  if(cameraIsOpen() && cameraCaptured){
+    cameraStatus.textContent='CALCULATION ERROR';
+    cameraMoveText.textContent='CHECK HAND';
+    cameraEvText.textContent=message || 'Could not calculate this hand.';
+  }
   emptyState.textContent = message || 'Could not calculate this hand.';
   emptyState.classList.add('error');
   emptyState.classList.remove('hidden');
@@ -175,6 +358,11 @@ function showAnalysis(analysis){
   results.classList.remove('hidden');
 
   if(analysis.terminal){
+    if(cameraIsOpen() && cameraCaptured){
+      cameraStatus.textContent='RESULT';
+      cameraMoveText.textContent=analysis.terminal;
+      cameraEvText.textContent='The hand resolves automatically.';
+    }
     bestMove.textContent = analysis.terminal;
     bestEv.textContent = 'The game resolves automatically.';
     actionCards.replaceChildren();
@@ -184,6 +372,12 @@ function showAnalysis(analysis){
 
   bestMove.textContent = analysis.best;
   bestEv.textContent = `Expected value: ${formatEV(analysis.actions[analysis.best].ev)} original-bet units`;
+  if(cameraIsOpen() && cameraCaptured){
+    cameraStatus.textContent='RESULT';
+    cameraMoveText.textContent=analysis.best;
+    const metric=analysis.actions[analysis.best];
+    cameraEvText.textContent=`EV ${formatEV(metric.ev)} • Win ${formatPct(metric.win)} • Push ${formatPct(metric.push)} • Lose ${formatPct(metric.loss)}`;
+  }
   actionCards.replaceChildren();
 
   for(const [name, metric] of Object.entries(analysis.actions)){
@@ -257,6 +451,15 @@ buildRankGrid($('rankGrid'), 'playerCards');
 buildRankGrid($('otherRankGrid'), 'otherCards');
 dealerUp.addEventListener('change', render);
 
+$('startCameraButton')?.addEventListener('click', startCamera);
+$('cameraCloseButton')?.addEventListener('click', stopCamera);
+cameraCaptureButton?.addEventListener('click', captureCamera);
+cameraRetakeButton?.addEventListener('click', retakeCamera);
+cameraUseManualButton?.addEventListener('click', () => {
+  stopCamera();
+  document.getElementById('cards-title')?.scrollIntoView({behavior:'smooth',block:'start'});
+});
+
 $('resetButton').addEventListener('click', () => {
   requestId++;
   scanId++;
@@ -268,7 +471,7 @@ $('resetButton').addEventListener('click', () => {
   $('screenshotPreview').removeAttribute('src');
   drawDetectorOverlay([]);
   detectorBadge.textContent = 'AUTO + CONFIRM';
-  detectorStatus.textContent = 'Choose a GTA blackjack screenshot or photo. The experimental reader will try to fill the ranks automatically, then you can correct anything it misreads.';
+  detectorStatus.textContent = 'Use the camera scanner or choose a GTA blackjack screenshot. Low-confidence OCR will never auto-fill the hand.';
   render();
 });
 
@@ -299,5 +502,11 @@ $('screenshotInput').addEventListener('change', (event) => {
 });
 
 window.addEventListener('resize',()=>drawDetectorOverlay());
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden && cameraIsOpen()) stopCamera();
+});
+window.addEventListener('pagehide', () => {
+  cameraStream?.getTracks().forEach(track=>track.stop());
+});
 
 render();
