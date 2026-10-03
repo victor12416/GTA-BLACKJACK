@@ -105,7 +105,7 @@ function findBrightComponents(ctx, width, height){
     if(w < width*0.012 || w > width*0.24) continue;
     if(h < height*0.025 || h > height*0.30) continue;
     const aspect = w/h;
-    if(aspect < 0.20 || aspect > 2.35) continue;
+    if(aspect < 0.22 || aspect > 2.35) continue;
     const fill = count/(w*h);
     if(fill < 0.18) continue;
     components.push({x:minX,y:minY,w,h,count,fill,cx:minX+w/2,cy:minY+h/2});
@@ -211,6 +211,55 @@ function normalizeOcrRank(text){
   return null;
 }
 
+
+function extractOcrRanks(text){
+  const clean=String(text||'').toUpperCase().replace(/[^A-Z0-9]+/g,' ');
+  const matches=clean.match(/10|[A23456789JQK]/g)||[];
+  return matches.map(token=>'JQK'.includes(token)?'10':token);
+}
+
+function cropHandRegionCanvas(sourceCanvas,role){
+  const roi=role==='dealer'
+    ? {x:0.26,y:0.28,w:0.48,h:0.33}
+    : {x:0.22,y:0.52,w:0.56,h:0.33};
+  const sx=Math.round(sourceCanvas.width*roi.x);
+  const sy=Math.round(sourceCanvas.height*roi.y);
+  const sw=Math.round(sourceCanvas.width*roi.w);
+  const sh=Math.round(sourceCanvas.height*roi.h);
+  const out=makeCanvas(Math.max(420,sw*2),Math.max(220,sh*2));
+  const ctx=out.getContext('2d',{willReadFrequently:true});
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,out.width,out.height);
+  ctx.drawImage(sourceCanvas,sx,sy,sw,sh,0,0,out.width,out.height);
+
+  const id=ctx.getImageData(0,0,out.width,out.height);
+  for(let i=0;i<id.data.length;i+=4){
+    const r=id.data[i],g=id.data[i+1],b=id.data[i+2];
+    const l=0.2126*r+0.7152*g+0.0722*b;
+    const greenFelt=(g>r*1.08 && g>b*1.05 && g>55);
+    const redInk=(r>g*1.22 && r>b*1.16 && r>75);
+    const darkInk=l<125 && !greenFelt;
+    const v=(redInk||darkInk)?0:255;
+    id.data[i]=v; id.data[i+1]=v; id.data[i+2]=v; id.data[i+3]=255;
+  }
+  ctx.putImageData(id,0,0);
+  return {canvas:out,roi};
+}
+
+async function readHandRegion(worker,sourceCanvas,role){
+  const {canvas,roi}=cropHandRegionCanvas(sourceCanvas,role);
+  let result;
+  await worker.setParameters({tessedit_pageseg_mode:'11'}); // sparse text
+  try {
+    result=await worker.recognize(canvas,{rotateAuto:true});
+  } finally {
+    // Always restore card-corner mode, even if a region OCR pass fails.
+    await worker.setParameters({tessedit_pageseg_mode:'8'});
+  }
+  const ranks=extractOcrRanks(result?.data?.text);
+  const confidence=Number(result?.data?.confidence)||0;
+  return {ranks,confidence,raw:String(result?.data?.text||'').trim(),roi};
+}
+
 async function readCandidate(worker,sourceCanvas,box){
   const rankCanvas=cropRankCanvas(sourceCanvas,box);
   const result=await worker.recognize(rankCanvas,{rotateAuto:true});
@@ -236,51 +285,70 @@ export async function detectVisibleCards(image,{onProgress}={}){
   const candidates=dedupeCandidates(raw);
   const rows=classifyRows(candidates,canvas.width,canvas.height);
 
-  if(!rows.dealer.length || rows.player.length<2){
-    return {
-      ready:false,playerCards:[],dealerUp:null,otherVisible:[],confidence:0,
-      boxes:[...rows.dealer.map(b=>cardForOverlay(b,'dealer',null,0,canvas.width,canvas.height)),...rows.player.map(b=>cardForOverlay(b,'player',null,0,canvas.width,canvas.height))],
-      message:'I found the table image, but not a clear dealer card plus two player cards. Use a closer/straighter screenshot or enter the ranks manually.',
-    };
-  }
-
   onProgress?.({stage:'ocr',message:'Loading local OCR…',progress:0.12});
   const worker=await getOcrWorker(m=>{
     if(m?.status && typeof m.progress==='number'){
-      onProgress?.({stage:'ocr',message:`OCR: ${m.status}`,progress:0.12+m.progress*0.25});
+      onProgress?.({stage:'ocr',message:`OCR: ${m.status}`,progress:0.12+m.progress*0.20});
     }
   });
 
   const dealerChoices=rows.dealer.slice(0,2);
   const playerChoices=rows.player.slice(0,7);
   const dealerReads=[];
+  const playerReads=[];
+
   for(let i=0;i<dealerChoices.length;i++){
-    onProgress?.({stage:'ocr',message:`Reading dealer card ${i+1}/${dealerChoices.length}…`,progress:0.40});
+    onProgress?.({stage:'ocr',message:`Reading dealer card ${i+1}/${dealerChoices.length}…`,progress:0.34});
     dealerReads.push({...await readCandidate(worker,canvas,dealerChoices[i]),box:dealerChoices[i]});
   }
-
-  const playerReads=[];
   for(let i=0;i<playerChoices.length;i++){
-    onProgress?.({stage:'ocr',message:`Reading your card ${i+1}/${playerChoices.length}…`,progress:0.48+0.46*((i+1)/playerChoices.length)});
+    onProgress?.({stage:'ocr',message:`Reading your card ${i+1}/${playerChoices.length}…`,progress:0.40+0.30*((i+1)/Math.max(1,playerChoices.length))});
     playerReads.push({...await readCandidate(worker,canvas,playerChoices[i]),box:playerChoices[i]});
   }
 
-  const validDealer=dealerReads.filter(r=>r.rank && r.confidence>=25).sort((a,b)=>b.confidence-a.confidence)[0]||null;
-  const validPlayer=playerReads.filter(r=>r.rank && r.confidence>=25);
-  const playerCards=validPlayer.map(r=>r.rank);
-  const dealerUp=validDealer?.rank||null;
+  let validDealer=dealerReads.filter(r=>r.rank && r.confidence>=25).sort((a,b)=>b.confidence-a.confidence)[0]||null;
+  let validPlayer=playerReads.filter(r=>r.rank && r.confidence>=25);
+  let dealerUp=validDealer?.rank||null;
+  let playerCards=validPlayer.map(r=>r.rank);
+  const regionBoxes=[];
+  const regionConfidences=[];
+
+  // GTA often fans/overlaps cards so two physical cards can become one bright connected component.
+  // If the card-shape pass is incomplete, OCR the whole expected hand region as a second pass.
+  if(!dealerUp){
+    onProgress?.({stage:'ocr',message:'Reading the dealer hand region…',progress:0.74});
+    const region=await readHandRegion(worker,canvas,'dealer');
+    if(region.ranks.length){
+      dealerUp=region.ranks[0];
+      regionConfidences.push(region.confidence);
+      regionBoxes.push({role:'dealer',rank:dealerUp,confidence:region.confidence,...region.roi});
+    }
+  }
+  if(playerCards.length<2){
+    onProgress?.({stage:'ocr',message:'Reading the full player hand region…',progress:0.84});
+    const region=await readHandRegion(worker,canvas,'player');
+    if(region.ranks.length>=2){
+      playerCards=region.ranks.slice(0,7);
+      regionConfidences.push(region.confidence);
+      regionBoxes.push({role:'player',rank:playerCards.join(','),confidence:region.confidence,...region.roi});
+    }
+  }
+
   const accepted=[...(validDealer?[validDealer]:[]),...validPlayer];
-  const confidence=accepted.length ? accepted.reduce((s,r)=>s+r.confidence,0)/accepted.length/100 : 0;
+  const confidenceParts=[...accepted.map(r=>r.confidence),...regionConfidences].filter(Number.isFinite);
+  const confidence=confidenceParts.length ? confidenceParts.reduce((s,v)=>s+v,0)/confidenceParts.length/100 : 0;
   const ready=Boolean(dealerUp && playerCards.length>=2);
   const boxes=[
     ...dealerReads.map(r=>cardForOverlay(r.box,'dealer',r.rank,r.confidence,canvas.width,canvas.height)),
     ...playerReads.map(r=>cardForOverlay(r.box,'player',r.rank,r.confidence,canvas.width,canvas.height)),
+    ...regionBoxes,
   ];
 
   return {
     ready,playerCards,dealerUp,otherVisible:[],confidence,boxes,
     message:ready
       ? `Auto-read ${playerCards.length} player card${playerCards.length===1?'':'s'} and dealer ${dealerUp}. Confirm the ranks below before using the result.`
-      : 'Card shapes were found, but OCR could not confidently read enough ranks. Enter or correct the ranks manually.',
+      : 'The scanner could not confidently read a dealer card plus two player cards. Enter or correct the ranks manually.',
   };
 }
+
