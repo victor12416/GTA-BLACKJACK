@@ -337,6 +337,67 @@ function cropRankCanvas(sourceCanvas,box){
   return out;
 }
 
+function cropCandidateClusterCanvas(sourceCanvas,boxes){
+  if(!boxes?.length) return null;
+  const minX=Math.min(...boxes.map(b=>b.x));
+  const minY=Math.min(...boxes.map(b=>b.y));
+  const maxX=Math.max(...boxes.map(b=>b.x+b.w));
+  const maxY=Math.max(...boxes.map(b=>b.y+b.h));
+  const unionW=Math.max(8,maxX-minX);
+  const unionH=Math.max(8,maxY-minY);
+  const padX=unionW*0.22;
+  const padY=unionH*0.16;
+  const sx=clamp(Math.floor(minX-padX),0,sourceCanvas.width-1);
+  const sy=clamp(Math.floor(minY-padY),0,sourceCanvas.height-1);
+  const sw=clamp(Math.ceil(unionW+padX*2),8,sourceCanvas.width-sx);
+  const sh=clamp(Math.ceil(unionH+padY*2),8,sourceCanvas.height-sy);
+
+  const out=makeCanvas(Math.max(420,sw*3),Math.max(260,sh*3));
+  const ctx=out.getContext('2d',{willReadFrequently:true});
+  ctx.fillStyle='#fff';
+  ctx.fillRect(0,0,out.width,out.height);
+  ctx.drawImage(sourceCanvas,sx,sy,sw,sh,0,0,out.width,out.height);
+
+  const id=ctx.getImageData(0,0,out.width,out.height);
+  for(let i=0;i<id.data.length;i+=4){
+    const r=id.data[i],g=id.data[i+1],b=id.data[i+2];
+    const l=0.2126*r+0.7152*g+0.0722*b;
+    const redInk=(r>g*1.22 && r>b*1.16 && r>75);
+    const darkInk=l<145;
+    const v=(redInk||darkInk)?0:255;
+    id.data[i]=v; id.data[i+1]=v; id.data[i+2]=v; id.data[i+3]=255;
+  }
+  ctx.putImageData(id,0,0);
+
+  return {
+    canvas:out,
+    roi:{
+      x:sx/sourceCanvas.width,
+      y:sy/sourceCanvas.height,
+      w:sw/sourceCanvas.width,
+      h:sh/sourceCanvas.height,
+    }
+  };
+}
+
+async function readCandidateCluster(worker,sourceCanvas,boxes){
+  const cropped=cropCandidateClusterCanvas(sourceCanvas,boxes);
+  if(!cropped) return null;
+  let result;
+  await worker.setParameters({tessedit_pageseg_mode:'11'});
+  try {
+    result=await worker.recognize(cropped.canvas,{rotateAuto:true});
+  } finally {
+    await worker.setParameters({tessedit_pageseg_mode:'8'});
+  }
+  return {
+    ranks:extractOcrRanks(result?.data?.text),
+    confidence:Number(result?.data?.confidence)||0,
+    raw:String(result?.data?.text||'').trim(),
+    roi:cropped.roi,
+  };
+}
+
 function normalizeOcrRank(text){
   const clean=String(text||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
   if(!clean) return null;
@@ -471,14 +532,27 @@ export async function detectVisibleCards(image,{onProgress}={}){
       regionBoxes.push({role:'dealer',rank:dealerUp,confidence:region.confidence,...region.roi});
     }
   }
-  if(playerCards.length<2){
-    onProgress?.({stage:'ocr',message:'Reading the full player hand region…',progress:0.84});
-    const region=await readHandRegion(worker,canvas,'player',activeBounds);
-    if(region.ranks.length>=2 && region.confidence>=45){
-      playerCards=region.ranks.slice(0,7);
-      regionConfidences.push(region.confidence);
-      regionBoxes.push({role:'player',rank:playerCards.join(','),confidence:region.confidence,...region.roi});
+  if(playerCards.length<2 && playerChoices.length){
+    onProgress?.({stage:'ocr',message:'Reading only the detected player-card cluster…',progress:0.82});
+    const cluster=await readCandidateCluster(worker,canvas,playerChoices);
+    if(cluster?.ranks.length>=2 && cluster.confidence>=45){
+      // Never let unrestricted table text create extra cards. The OCR cluster
+      // is cropped around actual card-shaped components only. A single merged
+      // bright component may represent two overlapping cards, so allow one
+      // extra rank beyond the number of detected shapes.
+      const maxPlausible=Math.min(7,Math.max(2,playerChoices.length+1));
+      playerCards=cluster.ranks.slice(0,maxPlausible);
+      regionConfidences.push(cluster.confidence);
+      regionBoxes.push({role:'player',rank:playerCards.join(','),confidence:cluster.confidence,...cluster.roi});
     }
+  }
+
+  if(playerCards.length<2 && !playerChoices.length){
+    // Do not auto-fill player cards from a large fixed table region. That old
+    // fallback could OCR felt markings (for example a stray "10") as a card.
+    // With no physical card-shaped component to anchor the crop, correctness
+    // is more important than forcing a guess.
+    onProgress?.({stage:'ocr',message:'Player cards were not isolated clearly enough for a safe read.',progress:0.88});
   }
 
   const accepted=[...(validDealer?[validDealer]:[]),...validPlayer];
