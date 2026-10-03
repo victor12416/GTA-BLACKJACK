@@ -16,6 +16,27 @@ const splitWarning = $('splitWarning');
 const remainingCount = $('remainingCount');
 const detectorStatus = $('detectorStatus');
 
+let requestId = 0;
+let calcWorker = null;
+
+try {
+  if('Worker' in window){
+    calcWorker = new Worker(new URL('./calculator-worker.js', import.meta.url), {type:'module'});
+    calcWorker.addEventListener('message', (event) => {
+      const {id, analysis, error} = event.data || {};
+      if(id !== requestId) return;
+      if(error) showCalculationError(error);
+      else showAnalysis(analysis);
+    });
+    calcWorker.addEventListener('error', () => {
+      calcWorker?.terminate();
+      calcWorker = null;
+    });
+  }
+} catch {
+  calcWorker = null;
+}
+
 function rankButton(rank, onClick){
   const b = document.createElement('button');
   b.type = 'button';
@@ -71,68 +92,94 @@ function makeProb(label, value){
   return el;
 }
 
-function renderResults(){
+function showCalculationError(message){
+  emptyState.textContent = message || 'Could not calculate this hand.';
+  emptyState.classList.add('error');
+  emptyState.classList.remove('hidden');
+  results.classList.add('hidden');
   remainingCount.textContent = '';
+}
+
+function showAnalysis(analysis){
+  if(!analysis) return showCalculationError('No calculation result returned.');
+
+  remainingCount.textContent = `${analysis.remaining} unseen`;
+  emptyState.classList.add('hidden');
+  results.classList.remove('hidden');
+
+  if(analysis.terminal){
+    bestMove.textContent = analysis.terminal;
+    bestEv.textContent = 'The game resolves automatically.';
+    actionCards.replaceChildren();
+    splitWarning.classList.add('hidden');
+    return;
+  }
+
+  bestMove.textContent = analysis.best;
+  bestEv.textContent = `Expected value: ${formatEV(analysis.actions[analysis.best].ev)} original-bet units`;
+  actionCards.replaceChildren();
+
+  for(const [name, metric] of Object.entries(analysis.actions)){
+    const card = document.createElement('article');
+    card.className = `action-card${name === analysis.best ? ' best' : ''}`;
+    const top = document.createElement('div');
+    top.className = 'action-top';
+    top.innerHTML = `<span class="action-name">${name}</span><span class="action-ev">EV ${formatEV(metric.ev)}</span>`;
+    const probs = document.createElement('div');
+    probs.className = 'probs';
+    probs.append(makeProb('Win', metric.win), makeProb('Push', metric.push), makeProb('Lose', metric.loss));
+    card.append(top, probs);
+    actionCards.appendChild(card);
+  }
+
+  if(analysis.splitAvailable && analysis.splitNote){
+    splitWarning.textContent = analysis.splitNote;
+    splitWarning.classList.remove('hidden');
+  } else {
+    splitWarning.classList.add('hidden');
+  }
+}
+
+function calculate(input, id){
+  if(calcWorker){
+    calcWorker.postMessage({id,input});
+    return;
+  }
+  // Fallback for browsers that cannot create a module worker.
+  setTimeout(() => {
+    if(id !== requestId) return;
+    try { showAnalysis(analyzeHand(input)); }
+    catch(err){ showCalculationError(err?.message); }
+  },0);
+}
+
+function renderResults(){
+  const id = ++requestId;
+  remainingCount.textContent = '';
+  splitWarning.classList.add('hidden');
+
   if(!dealerUp.value || state.playerCards.length < 2){
+    emptyState.textContent = 'Enter the dealer upcard and at least two player cards.';
+    emptyState.classList.remove('error');
     emptyState.classList.remove('hidden');
     results.classList.add('hidden');
     return;
   }
 
-  try {
-    const analysis = analyzeHand({
-      playerCards: state.playerCards,
-      dealerUp: dealerUp.value,
-      otherVisible: state.otherCards,
-      peekConfirmed: true,
-    });
+  emptyState.textContent = 'Calculating GTA blackjack probabilities…';
+  emptyState.classList.remove('error');
+  emptyState.classList.remove('hidden');
+  results.classList.add('hidden');
 
-    remainingCount.textContent = `${analysis.remaining} unseen`;
-    emptyState.classList.add('hidden');
-    results.classList.remove('hidden');
-
-    if(analysis.terminal){
-      bestMove.textContent = analysis.terminal;
-      bestEv.textContent = 'The game resolves automatically.';
-      actionCards.replaceChildren();
-      splitWarning.classList.add('hidden');
-      return;
-    }
-
-    bestMove.textContent = analysis.best;
-    bestEv.textContent = `Expected value: ${formatEV(analysis.actions[analysis.best].ev)} bets`;
-    actionCards.replaceChildren();
-
-    for(const [name, metric] of Object.entries(analysis.actions)){
-      const card = document.createElement('article');
-      card.className = `action-card${name === analysis.best ? ' best' : ''}`;
-      const top = document.createElement('div');
-      top.className = 'action-top';
-      top.innerHTML = `<span class="action-name">${name}</span><span class="action-ev">EV ${formatEV(metric.ev)}</span>`;
-      const probs = document.createElement('div');
-      probs.className = 'probs';
-      probs.append(makeProb('Win', metric.win), makeProb('Push', metric.push), makeProb('Lose', metric.loss));
-      card.append(top, probs);
-      actionCards.appendChild(card);
-    }
-
-    if(analysis.splitAvailable){
-      splitWarning.textContent = analysis.splitNote;
-      splitWarning.classList.remove('hidden');
-    } else {
-      splitWarning.classList.add('hidden');
-    }
-  } catch(err){
-    emptyState.textContent = err?.message || 'Could not calculate this hand.';
-    emptyState.classList.add('error');
-    emptyState.classList.remove('hidden');
-    results.classList.add('hidden');
-  }
+  calculate({
+    playerCards: [...state.playerCards],
+    dealerUp: dealerUp.value,
+    otherVisible: [...state.otherCards],
+    peekConfirmed: true,
+  }, id);
 }
 
 function render(){
-  emptyState.classList.remove('error');
-  emptyState.textContent = 'Enter the dealer upcard and at least two player cards.';
   renderChips(playerCardsEl, state.playerCards, 'playerCards');
   renderChips(otherCardsEl, state.otherCards, 'otherCards');
   updateHandSummary();
@@ -144,6 +191,7 @@ buildRankGrid($('otherRankGrid'), 'otherCards');
 dealerUp.addEventListener('change', render);
 
 $('resetButton').addEventListener('click', () => {
+  requestId++;
   state.playerCards.length = 0;
   state.otherCards.length = 0;
   dealerUp.value = '';
