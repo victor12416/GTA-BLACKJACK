@@ -1,12 +1,11 @@
-import { RANKS, analyzeHand, handValue, formatEV, formatPct } from './blackjack.js?v=20261003-4';
-import { detectVisibleCards } from './card-detector.js?v=20261003-4';
+import { RANKS, analyzeHand, handValue, formatEV, formatPct } from './blackjack.js?v=20261003-5';
+import { detectVisibleCards } from './card-detector.js?v=20261003-5';
 
-const state = { playerCards: [], otherCards: [] };
+const state = { playerCards: [] };
 const $ = (id) => document.getElementById(id);
 
 const dealerUp = $('dealerUp');
 const playerCardsEl = $('playerCards');
-const otherCardsEl = $('otherCards');
 const handSummary = $('handSummary');
 const emptyState = $('emptyState');
 const results = $('results');
@@ -41,7 +40,7 @@ let cameraScanId = 0;
 
 try {
   if('Worker' in window){
-    calcWorker = new Worker(new URL('./calculator-worker.js?v=20261003-4', import.meta.url), {type:'module'});
+    calcWorker = new Worker(new URL('./calculator-worker.js?v=20261003-5', import.meta.url), {type:'module'});
     calcWorker.addEventListener('message', (event) => {
       const {id, analysis, error} = event.data || {};
       if(id !== requestId) return;
@@ -156,7 +155,6 @@ async function runScreenshotDetection(img,id){
 
     if(detected.ready){
       state.playerCards.splice(0,state.playerCards.length,...detected.playerCards);
-      state.otherCards.length = 0;
       dealerUp.value = detected.dealerUp || '';
       detectorBadge.textContent = 'AUTO + CONFIRM';
       const pct=Math.round((detected.confidence||0)*100);
@@ -299,7 +297,6 @@ async function runCameraDetection(id){
     }
 
     state.playerCards.splice(0,state.playerCards.length,...detected.playerCards);
-    state.otherCards.length=0;
     dealerUp.value=detected.dealerUp || '';
     cameraStatus.textContent='CARDS FOUND';
     cameraHandText.textContent=`You: ${detected.playerCards.join(', ')}   Dealer: ${detected.dealerUp}   • ${pct}%`;
@@ -435,20 +432,18 @@ function renderResults(){
   calculate({
     playerCards: [...state.playerCards],
     dealerUp: dealerUp.value,
-    otherVisible: [...state.otherCards],
+    otherVisible: [],
     peekConfirmed: true,
   }, id);
 }
 
 function render(){
   renderChips(playerCardsEl, state.playerCards, 'playerCards');
-  renderChips(otherCardsEl, state.otherCards, 'otherCards');
   updateHandSummary();
   renderResults();
 }
 
 buildRankGrid($('rankGrid'), 'playerCards');
-buildRankGrid($('otherRankGrid'), 'otherCards');
 dealerUp.addEventListener('change', render);
 
 $('startCameraButton')?.addEventListener('click', startCamera);
@@ -464,7 +459,6 @@ $('resetButton').addEventListener('click', () => {
   requestId++;
   scanId++;
   state.playerCards.length = 0;
-  state.otherCards.length = 0;
   dealerUp.value = '';
   $('screenshotInput').value = '';
   $('previewWrap').classList.add('hidden');
