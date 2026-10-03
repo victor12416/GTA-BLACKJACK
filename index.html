@@ -4,58 +4,60 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#08110d">
-  <title>GTA Blackjack Quick Calc</title>
-  <link rel="stylesheet" href="styles.css?v=20261003-6">
+  <title>GTA Blackjack</title>
+  <link rel="stylesheet" href="styles.css?v=20261003-7">
 </head>
 <body>
-  <main class="app-shell">
+  <main class="app">
     <header class="topbar">
       <div>
-        <p class="eyebrow">GTA ONLINE • SOLO BLACKJACK</p>
-        <h1>Quick Calc</h1>
+        <p class="eyebrow">GTA ONLINE • SOLO</p>
+        <h1>Blackjack</h1>
       </div>
-      <button id="newHandButton" class="new-hand-button" type="button">NEW HAND</button>
+      <button id="newHandButton" class="new-hand" type="button">NEW HAND</button>
     </header>
 
-    <section class="hands" aria-label="Current blackjack hand">
-      <button id="dealerPanel" class="hand-panel dealer-panel active" type="button">
-        <span class="hand-label">DEALER</span>
-        <strong id="dealerCard" class="dealer-card">?</strong>
-        <span id="dealerHint" class="hand-hint">Tap a rank below</span>
-      </button>
+    <section class="dealer-section" aria-labelledby="dealer-title">
+      <div class="section-line">
+        <span id="dealer-title" class="section-title">DEALER SHOWING</span>
+        <strong id="dealerValue" class="selected-value">—</strong>
+      </div>
+      <div id="dealerGrid" class="rank-grid dealer-grid" aria-label="Dealer showing card"></div>
+    </section>
 
-      <button id="playerPanel" class="hand-panel player-panel" type="button">
-        <span class="hand-label">YOU</span>
-        <span id="playerCards" class="player-cards">—</span>
-        <span id="handSummary" class="hand-hint">Waiting for dealer</span>
-      </button>
+    <section class="player-section" aria-labelledby="player-title">
+      <div class="section-line">
+        <span id="player-title" class="section-title">YOUR HAND</span>
+        <span id="handSummary" class="hand-summary">Add 2 cards</span>
+      </div>
+      <div id="playerCards" class="player-cards" aria-live="polite"></div>
     </section>
 
     <section id="resultPanel" class="result-panel" aria-live="polite">
-      <div class="result-heading">
-        <span id="resultLabel">ENTER DEALER CARD</span>
+      <div class="result-top">
+        <span id="resultLabel">ENTER HAND</span>
         <span id="remainingCount"></span>
       </div>
       <strong id="bestMove" class="best-move">—</strong>
-      <div id="bestProbabilities" class="best-probabilities">Dealer first, then your cards.</div>
-      <div id="actionEvs" class="action-evs" aria-label="Expected values"></div>
+      <div id="bestProbabilities" class="best-probabilities">Choose dealer card, then add your cards.</div>
+      <div id="actionEvs" class="action-evs"></div>
       <div id="resultNote" class="result-note"></div>
     </section>
 
-    <section class="entry-panel" aria-label="Card entry">
-      <div class="entry-heading">
-        <span id="entryTarget">DEALER CARD</span>
-        <span class="entry-help">Tap cards as they appear</span>
+    <section class="keypad-section" aria-labelledby="keypad-title">
+      <div class="section-line keypad-heading">
+        <span id="keypad-title" class="section-title">ADD YOUR CARD</span>
+        <span class="tap-hint">Keep tapping after every HIT</span>
       </div>
-      <div id="rankGrid" class="rank-grid"></div>
+      <div id="playerGrid" class="rank-grid player-grid" aria-label="Add a card to your hand"></div>
     </section>
 
-    <section class="bottom-controls">
-      <button id="undoButton" class="control-button" type="button">UNDO</button>
-      <button id="switchTargetButton" class="control-button target-button" type="button">EDIT DEALER</button>
+    <section class="controls">
+      <button id="undoButton" class="control-button" type="button">UNDO LAST CARD</button>
+      <button id="clearPlayerButton" class="control-button secondary" type="button">CLEAR YOUR HAND</button>
     </section>
   </main>
 
-  <script type="module" src="app.js?v=20261003-6"></script>
+  <script type="module" src="app.js?v=20261003-7"></script>
 </body>
 </html>
