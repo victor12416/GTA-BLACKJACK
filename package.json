@@ -1,0 +1,6 @@
+{
+  "name": "gta-blackjack-calculator",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node tests.mjs" }
+}
