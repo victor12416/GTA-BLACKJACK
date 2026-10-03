@@ -453,8 +453,8 @@ export async function detectVisibleCards(image,{onProgress}={}){
     playerReads.push({...await readCandidate(worker,canvas,playerChoices[i]),box:playerChoices[i]});
   }
 
-  let validDealer=dealerReads.filter(r=>r.rank && r.confidence>=25).sort((a,b)=>b.confidence-a.confidence)[0]||null;
-  let validPlayer=playerReads.filter(r=>r.rank && r.confidence>=25);
+  let validDealer=dealerReads.filter(r=>r.rank && r.confidence>=45).sort((a,b)=>b.confidence-a.confidence)[0]||null;
+  let validPlayer=playerReads.filter(r=>r.rank && r.confidence>=45);
   let dealerUp=validDealer?.rank||null;
   let playerCards=validPlayer.map(r=>r.rank);
   const regionBoxes=[];
@@ -465,7 +465,7 @@ export async function detectVisibleCards(image,{onProgress}={}){
   if(!dealerUp){
     onProgress?.({stage:'ocr',message:'Reading the dealer hand region…',progress:0.74});
     const region=await readHandRegion(worker,canvas,'dealer',activeBounds);
-    if(region.ranks.length){
+    if(region.ranks.length && region.confidence>=45){
       dealerUp=region.ranks[0];
       regionConfidences.push(region.confidence);
       regionBoxes.push({role:'dealer',rank:dealerUp,confidence:region.confidence,...region.roi});
@@ -474,7 +474,7 @@ export async function detectVisibleCards(image,{onProgress}={}){
   if(playerCards.length<2){
     onProgress?.({stage:'ocr',message:'Reading the full player hand region…',progress:0.84});
     const region=await readHandRegion(worker,canvas,'player',activeBounds);
-    if(region.ranks.length>=2){
+    if(region.ranks.length>=2 && region.confidence>=45){
       playerCards=region.ranks.slice(0,7);
       regionConfidences.push(region.confidence);
       regionBoxes.push({role:'player',rank:playerCards.join(','),confidence:region.confidence,...region.roi});
@@ -484,7 +484,7 @@ export async function detectVisibleCards(image,{onProgress}={}){
   const accepted=[...(validDealer?[validDealer]:[]),...validPlayer];
   const confidenceParts=[...accepted.map(r=>r.confidence),...regionConfidences].filter(Number.isFinite);
   const confidence=confidenceParts.length ? confidenceParts.reduce((s,v)=>s+v,0)/confidenceParts.length/100 : 0;
-  const ready=Boolean(dealerUp && playerCards.length>=2);
+  const ready=Boolean(dealerUp && playerCards.length>=2 && confidence>=0.45);
   const boxes=[
     ...dealerReads.map(r=>cardForOverlay(r.box,'dealer',r.rank,r.confidence,canvas.width,canvas.height)),
     ...playerReads.map(r=>cardForOverlay(r.box,'player',r.rank,r.confidence,canvas.width,canvas.height)),
@@ -495,7 +495,9 @@ export async function detectVisibleCards(image,{onProgress}={}){
     ready,playerCards,dealerUp,otherVisible:[],confidence,boxes,
     message:ready
       ? `Auto-read ${playerCards.length} player card${playerCards.length===1?'':'s'} and dealer ${dealerUp}. Confirm the ranks below before using the result.`
-      : 'The scanner could not confidently read a dealer card plus two player cards. Enter or correct the ranks manually.',
+      : confidence>0
+        ? `I found possible cards, but confidence was only ${Math.round(confidence*100)}%. I did not auto-fill them. Retake the image or enter/correct the ranks manually.`
+        : 'The scanner could not confidently read a dealer card plus two player cards. Retake the image or enter the ranks manually.',
   };
 }
 
