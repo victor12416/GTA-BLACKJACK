@@ -1,15 +1,19 @@
 :root {
   color-scheme: dark;
-  --bg: #07100c;
-  --panel: #0d1a14;
-  --panel-2: #13271e;
-  --border: #274537;
-  --text: #f6faf7;
-  --muted: #91a79a;
-  --accent: #79e6a9;
-  --accent-2: #bfffd8;
-  --dealer: #ffd27a;
-  --danger: #ff9e91;
+  --bg: #0a0c0f;
+  --panel: #111419;
+  --panel-2: #171b20;
+  --border: #2a3037;
+  --border-strong: #3b424b;
+  --text: #f7f8fa;
+  --muted: #8f98a3;
+  --dealer: #ffcc66;
+  --player: #7dd3fc;
+  --hit: #38bdf8;
+  --stand: #4ade80;
+  --double: #fbbf24;
+  --split: #c084fc;
+  --danger: #fb7185;
 }
 
 * { box-sizing: border-box; }
@@ -37,7 +41,7 @@ button {
 }
 
 button:focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--player);
   outline-offset: 2px;
 }
 
@@ -50,324 +54,291 @@ button:focus-visible {
     10px
     max(8px, env(safe-area-inset-bottom));
   display: grid;
-  grid-template-rows: auto auto auto minmax(110px, 1fr) auto auto;
-  gap: 7px;
+  grid-template-rows: auto auto auto minmax(112px, 1fr) auto;
+  gap: 8px;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 50% -18%, #163827 0, transparent 36%),
-    var(--bg);
+  background: var(--bg);
 }
 
-.topbar,
-.section-line,
-.result-top {
+.topbar {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.eyebrow {
+  margin: 0 0 2px;
+  color: var(--muted);
+  font-size: .62rem;
+  font-weight: 850;
+  letter-spacing: .12em;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(1.3rem, 6vw, 1.8rem);
+  line-height: 1;
+  letter-spacing: -.035em;
+}
+
+.new-hand,
+.control-button {
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-weight: 850;
+}
+
+.new-hand {
+  min-height: 40px;
+  padding: 0 13px;
+}
+
+.panel {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  padding: 9px;
+}
+
+.panel-heading {
+  min-height: 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
 }
 
-.topbar {
-  min-height: 42px;
-}
-
-.eyebrow {
-  margin: 0 0 1px;
-  color: var(--accent);
-  font-size: .62rem;
-  font-weight: 900;
-  letter-spacing: .12em;
-}
-
-h1 {
-  margin: 0;
-  font-size: clamp(1.25rem, 6vw, 1.75rem);
-  line-height: 1;
-  letter-spacing: -.03em;
-}
-
-.new-hand,
-.control-button {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--panel-2);
-  color: var(--text);
-  font-weight: 900;
-}
-
-.new-hand {
-  min-height: 40px;
-  padding: 0 12px;
-  color: var(--accent);
-}
-
-.dealer-section,
-.player-section,
-.keypad-section,
-.result-panel {
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--panel);
-}
-
-.dealer-section,
-.keypad-section {
-  padding: 8px;
-}
-
-.player-section {
-  padding: 8px 10px;
-}
-
-.section-title {
+.step-label {
   color: var(--muted);
-  font-size: .66rem;
+  font-size: .68rem;
   font-weight: 900;
-  letter-spacing: .1em;
+  letter-spacing: .08em;
 }
 
-.selected-value {
+.step-label b {
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  margin-right: 5px;
+  place-items: center;
+  border-radius: 50%;
+  background: #252b32;
+  color: #fff;
+  font-size: .67rem;
+}
+
+.dealer-value {
   color: var(--dealer);
-  font-size: 1.1rem;
+  font-size: 1.2rem;
 }
 
 .hand-summary {
-  color: var(--accent);
-  font-size: .72rem;
+  color: var(--player);
+  font-size: .74rem;
   font-weight: 900;
 }
 
 .rank-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 5px;
+  gap: 6px;
 }
 
-.dealer-grid,
+.dealer-grid {
+  margin-top: 7px;
+}
+
 .player-grid {
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .rank-button {
-  height: clamp(38px, 5.7dvh, 48px);
+  height: clamp(40px, 5.7dvh, 50px);
   min-height: 0;
   padding: 0;
-  border: 1px solid #335a46;
+  border: 1px solid var(--border-strong);
   border-radius: 9px;
-  background: #142a20;
+  background: #1a1f25;
   color: var(--text);
-  font-size: clamp(.95rem, 4.6vw, 1.2rem);
-  font-weight: 950;
+  font-size: clamp(1rem, 4.8vw, 1.24rem);
+  font-weight: 900;
 }
 
 .rank-button:active {
   transform: scale(.97);
-  background: #1a392a;
+  background: #252b32;
 }
 
 .dealer-grid .rank-button.selected {
   border-color: var(--dealer);
-  background: #3a3019;
-  color: #fff1c6;
-  box-shadow: inset 0 0 0 1px rgba(255,210,122,.28);
+  background: #3a301d;
+  color: #fff4cf;
+  box-shadow: inset 0 0 0 1px rgba(255,204,102,.2);
+}
+
+.player-panel {
+  border-color: #29323a;
 }
 
 .player-cards {
-  min-height: 34px;
-  margin-top: 6px;
+  min-height: 38px;
+  margin-top: 7px;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 6px;
   overflow: hidden;
 }
 
 .card-chip {
-  min-width: 34px;
-  min-height: 34px;
-  padding: 0 8px;
-  border: 0;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 9px;
+  border: 1px solid #dfe5ea;
   border-radius: 8px;
-  background: #f3f6f4;
-  color: #101512;
+  background: #f7f8fa;
+  color: #0d1117;
   font-weight: 950;
 }
 
 .empty-hand {
-  color: #6f8277;
-  font-size: .8rem;
+  color: #68727c;
+  font-size: .82rem;
 }
 
 .result-panel {
+  position: relative;
   min-height: 0;
-  padding: 9px 11px;
+  border: 2px solid var(--border-strong);
+  border-radius: 16px;
+  background: #0f1216;
+  padding: 11px 14px;
   display: grid;
-  grid-template-rows: auto minmax(42px, 1fr) auto auto auto;
+  grid-template-rows: auto minmax(52px, 1fr) auto auto;
   align-items: center;
+  text-align: center;
   overflow: hidden;
-  background: linear-gradient(145deg, #0d1b14, #0a1510);
+}
+
+.result-step {
+  justify-self: start;
 }
 
 .result-panel.has-result {
-  border-color: #3f7c57;
-  background: linear-gradient(145deg, #143622, #0c2117);
+  border-color: currentColor;
 }
 
-.result-panel.terminal { border-color: var(--dealer); }
-.result-panel.error { border-color: #7b3a32; }
+.result-panel[data-move="HIT"] { color: var(--hit); }
+.result-panel[data-move="STAND"] { color: var(--stand); }
+.result-panel[data-move="DOUBLE"] { color: var(--double); }
+.result-panel[data-move="SPLIT"] { color: var(--split); }
 
-.result-top {
-  color: var(--muted);
-  font-size: .64rem;
-  font-weight: 900;
-  letter-spacing: .09em;
+.result-panel.terminal {
+  color: var(--dealer);
+  border-color: var(--dealer);
+}
+
+.result-panel.error {
+  color: var(--danger);
+  border-color: var(--danger);
 }
 
 .best-move {
   align-self: center;
-  color: var(--accent-2);
-  font-size: clamp(2.2rem, 13vw, 4.2rem);
-  line-height: .86;
-  letter-spacing: -.04em;
+  color: currentColor;
+  font-size: clamp(2.8rem, 16vw, 5.2rem);
+  line-height: .88;
+  letter-spacing: -.05em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.result-panel:not(.has-result):not(.terminal):not(.error) .best-move {
+  color: #58616b;
 }
 
 .terminal .best-move {
-  color: var(--dealer);
-  font-size: clamp(1.55rem, 8vw, 2.8rem);
+  font-size: clamp(1.75rem, 9vw, 3rem);
 }
-
-.error .best-move { color: var(--danger); }
 
 .best-probabilities {
-  color: #d5e2da;
-  font-size: .76rem;
-  font-weight: 700;
+  color: #d2d8de;
+  font-size: .78rem;
+  font-weight: 750;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.action-evs {
-  min-height: 24px;
-  margin-top: 4px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-}
-
-.ev-pill {
-  padding: 3px 6px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: rgba(0,0,0,.18);
-  color: #b8c8be;
-  font-size: .66rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.ev-pill.best {
-  border-color: #4f9b6b;
-  color: var(--accent-2);
-}
-
-.ev-pill b { color: var(--text); }
-
-.result-note {
-  min-height: 13px;
-  margin-top: 2px;
-  color: #72867a;
-  font-size: .58rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.keypad-heading {
-  margin-bottom: 2px;
-}
-
-.tap-hint {
-  color: var(--accent);
-  font-size: .66rem;
-  font-weight: 800;
+.result-status {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: .62rem;
+  font-weight: 850;
+  letter-spacing: .09em;
 }
 
 .controls {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 7px;
+  gap: 8px;
 }
 
 .control-button {
-  min-height: 40px;
-  padding: 0 8px;
-  font-size: .76rem;
+  min-height: 42px;
+  padding: 0 10px;
+  font-size: .8rem;
 }
 
 .control-button.secondary {
-  color: var(--muted);
+  color: #aab1b8;
 }
 
-@media (max-height: 700px) and (orientation: portrait) {
+@media (max-height: 720px) and (orientation: portrait) {
   .app {
-    gap: 5px;
+    gap: 6px;
     padding-top: max(5px, env(safe-area-inset-top));
     padding-bottom: max(5px, env(safe-area-inset-bottom));
-    grid-template-rows: auto auto auto minmax(92px, 1fr) auto auto;
+    grid-template-rows: auto auto auto minmax(94px, 1fr) auto;
   }
 
-  .topbar { min-height: 36px; }
+  .topbar { min-height: 38px; }
   .new-hand { min-height: 36px; }
-  .dealer-section,
-  .player-section,
-  .keypad-section { padding: 6px 7px; }
+  .panel { padding: 7px; }
   .rank-grid { gap: 4px; }
-  .rank-button { height: clamp(34px, 5.2dvh, 42px); border-radius: 8px; }
-  .player-cards { min-height: 30px; margin-top: 4px; }
-  .card-chip { min-height: 30px; min-width: 30px; }
-  .result-panel { padding: 7px 9px; }
-  .control-button { min-height: 36px; }
-  .result-note { display: none; }
+  .rank-button { height: clamp(35px, 5.2dvh, 43px); border-radius: 8px; }
+  .player-cards { min-height: 31px; margin-top: 5px; }
+  .card-chip { min-height: 31px; min-width: 31px; padding: 0 7px; }
+  .result-panel { padding: 8px 11px; }
+  .control-button { min-height: 37px; }
 }
 
 @media (orientation: landscape) and (max-height: 600px) {
   .app {
     width: min(980px, 100%);
-    grid-template-columns: minmax(360px, 1fr) minmax(430px, 1.15fr);
-    grid-template-rows: auto auto auto minmax(0, 1fr);
+    grid-template-columns: minmax(420px, 1fr) minmax(360px, .9fr);
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
     grid-template-areas:
       "top top"
-      "dealer keypad"
-      "player keypad"
-      "result controls";
-    gap: 6px 9px;
+      "dealer result"
+      "player result"
+      "controls result";
+    gap: 7px 10px;
   }
 
   .topbar { grid-area: top; }
-  .dealer-section { grid-area: dealer; }
-  .player-section { grid-area: player; }
+  .dealer-panel { grid-area: dealer; }
+  .player-panel { grid-area: player; }
   .result-panel { grid-area: result; }
-  .keypad-section {
-    grid-area: keypad;
-    display: grid;
-    grid-template-rows: auto 1fr;
-  }
-  .controls {
-    grid-area: controls;
-    align-self: end;
-  }
+  .controls { grid-area: controls; }
+  .best-move { font-size: clamp(2.6rem, 12vh, 4.6rem); }
+}
 
-  .player-grid {
-    height: 100%;
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(5, 1fr);
-  }
-
-  .player-grid .rank-button {
-    height: auto;
-  }
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
 }
