@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0a0c0f">
   <title>GTA Blackjack</title>
-  <link rel="stylesheet" href="styles.css?v=20261003-9">
+  <link rel="stylesheet" href="styles.css?v=20261003-10">
 </head>
 <body>
   <main class="app">
@@ -39,6 +39,21 @@
         <span id="handSummary" class="hand-summary">Add 2 cards</span>
       </div>
 
+      <div id="splitButtonWrap" class="split-button-wrap hidden">
+        <button id="splitButton" class="split-button" type="button">SPLIT HANDS</button>
+      </div>
+
+      <div id="splitTabs" class="split-tabs hidden" role="tablist" aria-label="Split hands">
+        <button id="hand1Tab" class="split-tab active" type="button" role="tab" aria-selected="true">
+          <b>HAND 1</b>
+          <small id="hand1Preview">—</small>
+        </button>
+        <button id="hand2Tab" class="split-tab" type="button" role="tab" aria-selected="false">
+          <b>HAND 2</b>
+          <small id="hand2Preview">—</small>
+        </button>
+      </div>
+
       <div id="playerCards" class="player-cards" aria-live="polite"></div>
 
       <div id="playerGrid" class="rank-grid player-grid" aria-label="Add a card to your hand"></div>
@@ -58,6 +73,6 @@
     </section>
   </main>
 
-  <script type="module" src="app.js?v=20261003-9"></script>
+  <script type="module" src="app.js?v=20261003-10"></script>
 </body>
 </html>
