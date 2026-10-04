@@ -4,10 +4,10 @@ A mobile-first GTA Online Diamond Casino blackjack probability calculator design
 
 ## Live workflow
 
-1. Pick the dealer's showing card from the permanent **DEALER CARD** grid.
-2. Add your cards from the permanent **YOUR HAND** keypad.
-3. The best move appears automatically.
-4. If you HIT, tap the new card on the same keypad and the recommendation recalculates.
+1. Enter your cards first from the permanent **YOUR HAND** keypad.
+2. Enter the dealer's showing card from the **DEALER CARD** grid once GTA reveals it.
+3. The best move appears automatically as soon as both your hand and the dealer upcard are present.
+4. If you HIT, tap the new card on the same player keypad and the recommendation recalculates.
 5. **UNDO** removes your newest card.
 6. **CLEAR HAND** keeps the dealer card but clears your cards.
 7. **NEW HAND** clears both dealer and player cards.
