@@ -1,4 +1,4 @@
-import { RANKS, analyzeHand, handValue, formatPct } from './blackjack.js?v=20261003-11';
+import { RANKS, analyzeHand, handValue, formatPct } from './blackjack.js?v=20261003-12';
 
 const $ = (id) => document.getElementById(id);
 
@@ -34,7 +34,7 @@ let calcWorker = null;
 
 try {
   if ('Worker' in window) {
-    calcWorker = new Worker(new URL('./calculator-worker.js?v=20261003-11', import.meta.url), { type: 'module' });
+    calcWorker = new Worker(new URL('./calculator-worker.js?v=20261003-12', import.meta.url), { type: 'module' });
     calcWorker.addEventListener('message', (event) => {
       const { id, analysis, error } = event.data || {};
       if (id !== requestId) return;
@@ -136,11 +136,7 @@ function updateSplitControls() {
 
 function removePlayerCard(index) {
   const cards = currentCards();
-
-  // The first card of each split hand is one of the original pair and cannot
-  // disappear from that hand after the physical split has happened.
   if (state.splitMode && index === 0) return;
-
   cards.splice(index, 1);
   vibrate(8);
   render();
@@ -212,11 +208,6 @@ function renderResult() {
   const cards = currentCards();
   const handPrefix = state.splitMode ? `${activeHandName()} • ` : '';
 
-  if (!state.dealerUp) {
-    clearResult('WAITING FOR DEALER', 'Choose the dealer showing card.');
-    return;
-  }
-
   if (cards.length < 2) {
     clearResult(
       state.splitMode ? `${activeHandName()} • ADD CARD` : 'WAITING FOR YOUR HAND',
@@ -224,6 +215,11 @@ function renderResult() {
         ? 'Add the next card dealt to this split hand.'
         : (cards.length ? 'Add your second card.' : 'Add your first two cards.')
     );
+    return;
+  }
+
+  if (!state.dealerUp) {
+    clearResult('WAITING FOR DEALER', 'Now choose the dealer showing card.');
     return;
   }
 
