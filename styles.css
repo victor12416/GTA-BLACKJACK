@@ -246,6 +246,69 @@ h1 {
   border-color: #29323a;
 }
 
+.hidden {
+  display: none !important;
+}
+
+.split-button-wrap {
+  margin-top: 7px;
+}
+
+.split-button {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--split);
+  border-radius: 9px;
+  background: #251934;
+  color: #e9d5ff;
+  font-size: .76rem;
+  font-weight: 950;
+  letter-spacing: .06em;
+}
+
+.split-tabs {
+  margin-top: 7px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.split-tab {
+  min-width: 0;
+  min-height: 39px;
+  padding: 5px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  background: #171b20;
+  color: #aeb6bf;
+  display: grid;
+  gap: 1px;
+  text-align: left;
+}
+
+.split-tab b {
+  font-size: .68rem;
+  letter-spacing: .07em;
+}
+
+.split-tab small {
+  overflow: hidden;
+  color: #8d96a0;
+  font-size: .64rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.split-tab.active {
+  border-color: var(--split);
+  background: #251934;
+  color: #f1e6ff;
+}
+
+.split-tab.active small {
+  color: #d8b4fe;
+}
+
 .player-cards {
   min-height: 38px;
   margin-top: 7px;
@@ -265,6 +328,13 @@ h1 {
   background: #f7f8fa;
   color: #0d1117;
   font-weight: 950;
+}
+
+.card-chip.locked {
+  border-color: #c084fc;
+  background: #e9d5ff;
+  color: #241033;
+  opacity: 1;
 }
 
 .empty-hand {
@@ -411,6 +481,10 @@ h1 {
   .panel { padding: 7px; }
   .rank-grid { gap: 4px; }
   .rank-button { height: clamp(35px, 5.2dvh, 43px); border-radius: 8px; }
+  .split-button-wrap,
+  .split-tabs { margin-top: 4px; }
+  .split-button { min-height: 31px; }
+  .split-tab { min-height: 33px; padding: 3px 6px; }
   .player-cards { min-height: 31px; margin-top: 5px; }
   .card-chip { min-height: 31px; min-width: 31px; padding: 0 7px; }
   .result-panel { padding: 8px 11px; }
