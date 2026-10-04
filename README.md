@@ -22,11 +22,12 @@ The calculator stays inside one phone viewport with page scrolling disabled. Dur
 The header includes a **RELOAD MODE** toggle for the user's GTA save/reload play style.
 
 - When Reload Mode is OFF, the normal finite-shoe EV recommendation is shown.
-- When Reload Mode is ON and **Double Down is legally available**, the displayed recommendation is forced to **DOUBLE**.
-- If Double Down is not legally available anymore, such as after taking a hit, the calculator falls back to the normal best legal move.
+- When Reload Mode is ON, the calculator still shows the normal mathematically best legal move.
+- If that move is **DOUBLE**, the user doubles and reloads if the attempt loses.
+- Reload Mode never forces a bad Double just because Double Down is technically available.
 - The probability line marks the loss outcome as the one the user intends to discard by reloading.
 
-Reload Mode changes only the displayed action priority. It does not modify the blackjack probability engine or pretend Double is legal when GTA rules do not allow it.
+Reload Mode changes how the loss outcome is treated by the player, not the underlying blackjack recommendation.
 
 ## Probability engine
 
