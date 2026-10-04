@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0a0c0f">
   <title>GTA Blackjack</title>
-  <link rel="stylesheet" href="styles.css?v=20261003-11">
+  <link rel="stylesheet" href="styles.css?v=20261003-12">
 </head>
 <body>
   <main class="app">
@@ -25,17 +25,9 @@
       </label>
     </header>
 
-    <section class="panel dealer-panel" aria-labelledby="dealer-title">
-      <div class="panel-heading">
-        <span id="dealer-title" class="step-label"><b>1</b> DEALER CARD</span>
-        <strong id="dealerValue" class="dealer-value">—</strong>
-      </div>
-      <div id="dealerGrid" class="rank-grid dealer-grid" aria-label="Dealer showing card"></div>
-    </section>
-
     <section class="panel player-panel" aria-labelledby="player-title">
       <div class="panel-heading">
-        <span id="player-title" class="step-label"><b>2</b> YOUR HAND</span>
+        <span id="player-title" class="step-label"><b>1</b> YOUR HAND</span>
         <span id="handSummary" class="hand-summary">Add 2 cards</span>
       </div>
 
@@ -55,14 +47,21 @@
       </div>
 
       <div id="playerCards" class="player-cards" aria-live="polite"></div>
-
       <div id="playerGrid" class="rank-grid player-grid" aria-label="Add a card to your hand"></div>
+    </section>
+
+    <section class="panel dealer-panel" aria-labelledby="dealer-title">
+      <div class="panel-heading">
+        <span id="dealer-title" class="step-label"><b>2</b> DEALER CARD</span>
+        <strong id="dealerValue" class="dealer-value">—</strong>
+      </div>
+      <div id="dealerGrid" class="rank-grid dealer-grid" aria-label="Dealer showing card"></div>
     </section>
 
     <section id="resultPanel" class="result-panel" aria-live="polite">
       <span class="step-label result-step"><b>3</b> BEST MOVE</span>
       <strong id="bestMove" class="best-move">—</strong>
-      <div id="bestProbabilities" class="best-probabilities">Choose the dealer card, then add your cards.</div>
+      <div id="bestProbabilities" class="best-probabilities">Add your cards first, then choose the dealer card.</div>
       <div id="resultLabel" class="result-status">WAITING</div>
     </section>
 
@@ -73,6 +72,6 @@
     </section>
   </main>
 
-  <script type="module" src="app.js?v=20261003-11"></script>
+  <script type="module" src="app.js?v=20261003-12"></script>
 </body>
 </html>
