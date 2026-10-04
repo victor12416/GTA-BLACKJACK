@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0a0c0f">
   <title>GTA Blackjack</title>
-  <link rel="stylesheet" href="styles.css?v=20261003-8">
+  <link rel="stylesheet" href="styles.css?v=20261003-9">
 </head>
 <body>
   <main class="app">
@@ -14,7 +14,15 @@
         <p class="eyebrow">GTA ONLINE • SOLO</p>
         <h1>Blackjack</h1>
       </div>
-      <button id="newHandButton" class="new-hand" type="button">NEW HAND</button>
+
+      <label class="mode-toggle" for="reloadMode">
+        <span>
+          <b>RELOAD MODE</b>
+          <small>Double when possible</small>
+        </span>
+        <input id="reloadMode" type="checkbox">
+        <i aria-hidden="true"></i>
+      </label>
     </header>
 
     <section class="panel dealer-panel" aria-labelledby="dealer-title">
@@ -46,9 +54,10 @@
     <section class="controls">
       <button id="undoButton" class="control-button" type="button">UNDO</button>
       <button id="clearPlayerButton" class="control-button secondary" type="button">CLEAR HAND</button>
+      <button id="newHandButton" class="control-button new-hand" type="button">NEW HAND</button>
     </section>
   </main>
 
-  <script type="module" src="app.js?v=20261003-8"></script>
+  <script type="module" src="app.js?v=20261003-9"></script>
 </body>
 </html>
