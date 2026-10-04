@@ -11,8 +11,11 @@ A mobile-first GTA Online Diamond Casino blackjack probability calculator design
 5. **UNDO** removes your newest card.
 6. **CLEAR HAND** keeps the dealer card but clears your cards.
 7. **NEW HAND** clears both dealer and player cards.
+8. When the first two cards are a pair, **SPLIT HANDS** appears. Tap it after you actually split in GTA.
+9. The app creates **HAND 1** and **HAND 2** tabs. Tap whichever hand GTA is currently dealing to, then keep entering that hand's cards with the same player keypad.
+10. Each split hand gets its own recommendation while the dealer upcard stays shared.
 
-The calculator stays inside one phone viewport with page scrolling disabled.
+The calculator stays inside one phone viewport with page scrolling disabled. During split play, visible cards from the other split hand are also removed from the finite shoe, and re-splitting is disabled to match the modeled GTA rules.
 
 ## Reload Mode
 
