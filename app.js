@@ -1,4 +1,4 @@
-import { RANKS, analyzeHand, handValue, formatPct } from './blackjack.js?v=20261003-10';
+import { RANKS, analyzeHand, handValue, formatPct } from './blackjack.js?v=20261003-11';
 
 const $ = (id) => document.getElementById(id);
 
@@ -34,7 +34,7 @@ let calcWorker = null;
 
 try {
   if ('Worker' in window) {
-    calcWorker = new Worker(new URL('./calculator-worker.js?v=20261003-10', import.meta.url), { type: 'module' });
+    calcWorker = new Worker(new URL('./calculator-worker.js?v=20261003-11', import.meta.url), { type: 'module' });
     calcWorker.addEventListener('message', (event) => {
       const { id, analysis, error } = event.data || {};
       if (id !== requestId) return;
@@ -259,8 +259,7 @@ function showAnalysis(analysis) {
     return;
   }
 
-  const doubleAvailable = Boolean(analysis.actions?.DOUBLE);
-  const displayedMove = state.reloadMode && doubleAvailable ? 'DOUBLE' : analysis.best;
+  const displayedMove = analysis.best;
   const displayed = analysis.actions[displayedMove];
 
   resultPanel.classList.add('has-result');
@@ -269,15 +268,9 @@ function showAnalysis(analysis) {
 
   if (state.reloadMode) {
     resultPanel.classList.add('reload-choice');
-    if (doubleAvailable) {
-      resultLabel.textContent = `${handPrefix}RELOAD MODE • DOUBLE AVAILABLE`;
-      bestProbabilities.textContent =
-        `Win ${formatPct(displayed.win)}   •   Push ${formatPct(displayed.push)}   •   Lose ${formatPct(displayed.loss)} → reload`;
-    } else {
-      resultLabel.textContent = `${handPrefix}RELOAD MODE • DOUBLE UNAVAILABLE`;
-      bestProbabilities.textContent =
-        `Fallback: Win ${formatPct(displayed.win)}   •   Push ${formatPct(displayed.push)}   •   Lose ${formatPct(displayed.loss)}`;
-    }
+    resultLabel.textContent = `${handPrefix}RELOAD MODE • BEST MOVE`;
+    bestProbabilities.textContent =
+      `Win ${formatPct(displayed.win)}   •   Push ${formatPct(displayed.push)}   •   Lose ${formatPct(displayed.loss)} → reload`;
     return;
   }
 
