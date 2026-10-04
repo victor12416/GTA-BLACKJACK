@@ -498,8 +498,8 @@ h1 {
     grid-template-rows: auto auto minmax(0, 1fr) auto;
     grid-template-areas:
       "top top"
-      "dealer result"
       "player result"
+      "dealer result"
       "controls result";
     gap: 7px 10px;
   }
