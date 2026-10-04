@@ -369,7 +369,7 @@ function splitMetric(playerCards, counts, dealerUp, allowed, memo){
   return metricFromDist(convolveDist(one,one));
 }
 
-export function analyzeHand({playerCards,dealerUp,otherVisible=[],peekConfirmed=true}){
+export function analyzeHand({playerCards,dealerUp,otherVisible=[],peekConfirmed=true,afterSplit=false}){
   if(!Array.isArray(playerCards) || playerCards.length < 2) throw new Error('Enter at least two player cards.');
   if(!dealerUp) throw new Error('Choose the dealer upcard.');
 
@@ -399,7 +399,7 @@ export function analyzeHand({playerCards,dealerUp,otherVisible=[],peekConfirmed=
     actions.DOUBLE = doubleMetric(normalizedPlayer,cloneCounts(publicCounts),d,allowed,memo);
   }
 
-  const splitAvailable = normalizedPlayer.length === 2 && rankValue(normalizedPlayer[0]) === rankValue(normalizedPlayer[1]);
+  const splitAvailable = !afterSplit && normalizedPlayer.length === 2 && rankValue(normalizedPlayer[0]) === rankValue(normalizedPlayer[1]);
   if(splitAvailable){
     actions.SPLIT = splitMetric(normalizedPlayer,cloneCounts(publicCounts),d,allowed,memo);
   }
@@ -424,6 +424,7 @@ export function analyzeHand({playerCards,dealerUp,otherVisible=[],peekConfirmed=
       hitSplitAces:true,
       doubleAfterSplit:true,
       resplit:false,
+      afterSplit,
       splitMethod:'independent-hand composition approximation',
       sevenCardCharlie:true
     }
