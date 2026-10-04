@@ -1,4 +1,4 @@
-import { RANKS, analyzeHand, handValue, formatEV, formatPct } from './blackjack.js?v=20261003-7';
+import { RANKS, analyzeHand, handValue, formatPct } from './blackjack.js?v=20261003-8';
 
 const $ = (id) => document.getElementById(id);
 
@@ -14,18 +14,15 @@ const playerCardsEl = $('playerCards');
 const handSummary = $('handSummary');
 const resultPanel = $('resultPanel');
 const resultLabel = $('resultLabel');
-const remainingCount = $('remainingCount');
 const bestMove = $('bestMove');
 const bestProbabilities = $('bestProbabilities');
-const actionEvs = $('actionEvs');
-const resultNote = $('resultNote');
 
 let requestId = 0;
 let calcWorker = null;
 
 try {
   if ('Worker' in window) {
-    calcWorker = new Worker(new URL('./calculator-worker.js?v=20261003-7', import.meta.url), { type: 'module' });
+    calcWorker = new Worker(new URL('./calculator-worker.js?v=20261003-8', import.meta.url), { type: 'module' });
     calcWorker.addEventListener('message', (event) => {
       const { id, analysis, error } = event.data || {};
       if (id !== requestId) return;
@@ -95,7 +92,7 @@ function renderPlayerCards() {
   if (!state.playerCards.length) {
     const empty = document.createElement('span');
     empty.className = 'empty-hand';
-    empty.textContent = 'No cards yet';
+    empty.textContent = 'Tap your cards below';
     playerCardsEl.appendChild(empty);
     return;
   }
@@ -114,47 +111,49 @@ function renderPlayerCards() {
 
 function updateHandSummary() {
   if (state.playerCards.length < 2) {
-    handSummary.textContent = state.playerCards.length ? 'Add 1 more card' : 'Add 2 cards';
+    handSummary.textContent = state.playerCards.length ? 'Add 1 more' : 'Add 2 cards';
     return;
   }
 
   const hand = handValue(state.playerCards);
   if (hand.bust) handSummary.textContent = `BUST • ${hand.total}`;
   else if (hand.blackjack) handSummary.textContent = 'BLACKJACK';
-  else if (hand.charlie) handSummary.textContent = `7-CARD CHARLIE • ${hand.total}`;
+  else if (hand.charlie) handSummary.textContent = `CHARLIE • ${hand.total}`;
   else handSummary.textContent = `${hand.soft ? 'SOFT' : 'HARD'} ${hand.total}`;
 }
 
-function clearResult(label, text) {
-  resultPanel.classList.remove('has-result', 'terminal', 'error');
-  resultLabel.textContent = label;
-  remainingCount.textContent = '';
+function resetResultStyle() {
+  delete resultPanel.dataset.move;
+  resultPanel.classList.remove('terminal', 'error', 'has-result');
+}
+
+function clearResult(status, text) {
+  resetResultStyle();
+  resultLabel.textContent = status;
   bestMove.textContent = '—';
   bestProbabilities.textContent = text;
-  actionEvs.replaceChildren();
-  resultNote.textContent = '';
 }
 
 function renderResult() {
   const id = ++requestId;
 
   if (!state.dealerUp) {
-    clearResult('ENTER DEALER', 'Choose the dealer showing card.');
+    clearResult('WAITING FOR DEALER', 'Choose the dealer showing card.');
     return;
   }
 
   if (state.playerCards.length < 2) {
-    clearResult('ENTER YOUR HAND', state.playerCards.length ? 'Add your second card.' : 'Add your first two cards.');
+    clearResult(
+      'WAITING FOR YOUR HAND',
+      state.playerCards.length ? 'Add your second card.' : 'Add your first two cards.'
+    );
     return;
   }
 
-  resultPanel.classList.remove('terminal', 'error');
+  resetResultStyle();
   resultLabel.textContent = 'CALCULATING';
-  remainingCount.textContent = '';
   bestMove.textContent = '…';
-  bestProbabilities.textContent = 'Running GTA probability tree';
-  actionEvs.replaceChildren();
-  resultNote.textContent = '';
+  bestProbabilities.textContent = 'Checking the best play';
 
   calculate({
     playerCards: [...state.playerCards],
@@ -164,60 +163,35 @@ function renderResult() {
   }, id);
 }
 
-function actionShortName(name) {
-  return ({ HIT: 'H', STAND: 'S', DOUBLE: 'D', SPLIT: 'P' })[name] || name[0] || '?';
-}
-
 function showAnalysis(analysis) {
   if (!analysis) return showCalculationError('No result returned.');
 
-  remainingCount.textContent = `${analysis.remaining} unseen`;
-  resultPanel.classList.remove('error');
+  resetResultStyle();
 
   if (analysis.terminal) {
-    resultPanel.classList.remove('has-result');
     resultPanel.classList.add('terminal');
-    resultLabel.textContent = 'HAND RESULT';
+    resultLabel.textContent = 'HAND COMPLETE';
     bestMove.textContent = analysis.terminal;
     bestProbabilities.textContent = 'No decision needed.';
-    actionEvs.replaceChildren();
-    resultNote.textContent = '';
     return;
   }
 
-  resultPanel.classList.remove('terminal');
   resultPanel.classList.add('has-result');
-  resultLabel.textContent = 'BEST MOVE';
+  resultPanel.dataset.move = analysis.best;
+  resultLabel.textContent = 'READY';
   bestMove.textContent = analysis.best;
 
   const best = analysis.actions[analysis.best];
   bestProbabilities.textContent =
-    `Win ${formatPct(best.win)} • Push ${formatPct(best.push)} • Lose ${formatPct(best.loss)}`;
-
-  actionEvs.replaceChildren();
-  for (const [name, metric] of Object.entries(analysis.actions)) {
-    const pill = document.createElement('span');
-    pill.className = `ev-pill${name === analysis.best ? ' best' : ''}`;
-    pill.innerHTML = `<b>${actionShortName(name)}</b> ${formatEV(metric.ev)}`;
-    pill.title = `${name}: EV ${formatEV(metric.ev)}`;
-    actionEvs.appendChild(pill);
-  }
-
-  resultNote.textContent =
-    analysis.splitAvailable && analysis.splitNote
-      ? 'P = Split • split EV uses the fast GTA four-deck estimate'
-      : 'Tap another card below immediately after every HIT';
+    `Win ${formatPct(best.win)}   •   Push ${formatPct(best.push)}   •   Lose ${formatPct(best.loss)}`;
 }
 
 function showCalculationError(message) {
-  resultPanel.classList.remove('has-result', 'terminal');
+  resetResultStyle();
   resultPanel.classList.add('error');
   resultLabel.textContent = 'CHECK HAND';
-  remainingCount.textContent = '';
   bestMove.textContent = 'ERROR';
   bestProbabilities.textContent = message || 'Could not calculate this hand.';
-  actionEvs.replaceChildren();
-  resultNote.textContent = '';
 }
 
 function calculate(input, id) {
