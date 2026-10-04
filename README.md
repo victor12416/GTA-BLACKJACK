@@ -4,19 +4,26 @@ A mobile-first GTA Online Diamond Casino blackjack probability calculator design
 
 ## Live workflow
 
-The live page uses two permanent manual controls:
-
-1. Pick the dealer's showing card from the **DEALER SHOWING** rank grid.
-2. Add your two cards from the separate **ADD YOUR CARD** keypad.
+1. Pick the dealer's showing card from the permanent **DEALER CARD** grid.
+2. Add your cards from the permanent **YOUR HAND** keypad.
 3. The best move appears automatically.
-4. If GTA tells you to HIT and you receive another card, tap that card on the same player keypad.
-5. Keep adding every new hit card to your hand. The recommendation recalculates after each one.
-6. **UNDO LAST CARD** removes only your newest player card.
-7. **CLEAR YOUR HAND** keeps the dealer card but clears your cards.
-8. **NEW HAND** clears both dealer and player cards for the next deal.
-9. Any player card chip can be tapped to remove that specific card.
+4. If you HIT, tap the new card on the same keypad and the recommendation recalculates.
+5. **UNDO** removes your newest card.
+6. **CLEAR HAND** keeps the dealer card but clears your cards.
+7. **NEW HAND** clears both dealer and player cards.
 
-The calculator is forced into one phone viewport with page scrolling disabled.
+The calculator stays inside one phone viewport with page scrolling disabled.
+
+## Reload Mode
+
+The header includes a **RELOAD MODE** toggle for the user's GTA save/reload play style.
+
+- When Reload Mode is OFF, the normal finite-shoe EV recommendation is shown.
+- When Reload Mode is ON and **Double Down is legally available**, the displayed recommendation is forced to **DOUBLE**.
+- If Double Down is not legally available anymore, such as after taking a hit, the calculator falls back to the normal best legal move.
+- The probability line marks the loss outcome as the one the user intends to discard by reloading.
+
+Reload Mode changes only the displayed action priority. It does not modify the blackjack probability engine or pretend Double is legal when GTA rules do not allow it.
 
 ## Probability engine
 
