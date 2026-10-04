@@ -1,10 +1,11 @@
-import { RANKS, analyzeHand, handValue, formatPct } from './blackjack.js?v=20261003-8';
+import { RANKS, analyzeHand, handValue, formatPct } from './blackjack.js?v=20261003-9';
 
 const $ = (id) => document.getElementById(id);
 
 const state = {
   dealerUp: '',
   playerCards: [],
+  reloadMode: false,
 };
 
 const dealerValue = $('dealerValue');
@@ -16,13 +17,14 @@ const resultPanel = $('resultPanel');
 const resultLabel = $('resultLabel');
 const bestMove = $('bestMove');
 const bestProbabilities = $('bestProbabilities');
+const reloadMode = $('reloadMode');
 
 let requestId = 0;
 let calcWorker = null;
 
 try {
   if ('Worker' in window) {
-    calcWorker = new Worker(new URL('./calculator-worker.js?v=20261003-8', import.meta.url), { type: 'module' });
+    calcWorker = new Worker(new URL('./calculator-worker.js?v=20261003-9', import.meta.url), { type: 'module' });
     calcWorker.addEventListener('message', (event) => {
       const { id, analysis, error } = event.data || {};
       if (id !== requestId) return;
@@ -124,7 +126,7 @@ function updateHandSummary() {
 
 function resetResultStyle() {
   delete resultPanel.dataset.move;
-  resultPanel.classList.remove('terminal', 'error', 'has-result');
+  resultPanel.classList.remove('terminal', 'error', 'has-result', 'reload-choice');
 }
 
 function clearResult(status, text) {
@@ -151,7 +153,7 @@ function renderResult() {
   }
 
   resetResultStyle();
-  resultLabel.textContent = 'CALCULATING';
+  resultLabel.textContent = state.reloadMode ? 'RELOAD MODE • CALCULATING' : 'CALCULATING';
   bestMove.textContent = '…';
   bestProbabilities.textContent = 'Checking the best play';
 
@@ -176,14 +178,31 @@ function showAnalysis(analysis) {
     return;
   }
 
-  resultPanel.classList.add('has-result');
-  resultPanel.dataset.move = analysis.best;
-  resultLabel.textContent = 'READY';
-  bestMove.textContent = analysis.best;
+  const doubleAvailable = Boolean(analysis.actions?.DOUBLE);
+  const displayedMove = state.reloadMode && doubleAvailable ? 'DOUBLE' : analysis.best;
+  const displayed = analysis.actions[displayedMove];
 
-  const best = analysis.actions[analysis.best];
+  resultPanel.classList.add('has-result');
+  resultPanel.dataset.move = displayedMove;
+  bestMove.textContent = displayedMove;
+
+  if (state.reloadMode) {
+    resultPanel.classList.add('reload-choice');
+    if (doubleAvailable) {
+      resultLabel.textContent = 'RELOAD MODE • DOUBLE AVAILABLE';
+      bestProbabilities.textContent =
+        `Win ${formatPct(displayed.win)}   •   Push ${formatPct(displayed.push)}   •   Lose ${formatPct(displayed.loss)} → reload`;
+    } else {
+      resultLabel.textContent = 'RELOAD MODE • DOUBLE UNAVAILABLE';
+      bestProbabilities.textContent =
+        `Fallback: Win ${formatPct(displayed.win)}   •   Push ${formatPct(displayed.push)}   •   Lose ${formatPct(displayed.loss)}`;
+    }
+    return;
+  }
+
+  resultLabel.textContent = 'READY';
   bestProbabilities.textContent =
-    `Win ${formatPct(best.win)}   •   Push ${formatPct(best.push)}   •   Lose ${formatPct(best.loss)}`;
+    `Win ${formatPct(displayed.win)}   •   Push ${formatPct(displayed.push)}   •   Lose ${formatPct(displayed.loss)}`;
 }
 
 function showCalculationError(message) {
@@ -238,6 +257,13 @@ function newHand() {
   vibrate(16);
   render();
 }
+
+reloadMode.addEventListener('change', () => {
+  state.reloadMode = reloadMode.checked;
+  document.body.classList.toggle('reload-mode', state.reloadMode);
+  vibrate(12);
+  renderResult();
+});
 
 $('undoButton').addEventListener('click', undoLastCard);
 $('clearPlayerButton').addEventListener('click', clearPlayerHand);
