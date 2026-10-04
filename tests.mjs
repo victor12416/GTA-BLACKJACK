@@ -39,4 +39,19 @@ for(const c of splitCases){
 const t2v4 = analyzeHand({playerCards:['10','2'],dealerUp:'4',peekConfirmed:true});
 assert.equal(t2v4.best,'HIT');
 
+// A hand created by an already-performed split may still double on its first
+// two cards, but GTA does not allow re-splitting. Visible cards in the sibling
+// split hand must also be removed from the finite shoe.
+const afterSplit = analyzeHand({
+  playerCards:['8','8'],
+  dealerUp:'6',
+  otherVisible:['8','5'],
+  peekConfirmed:true,
+  afterSplit:true,
+});
+assert.ok(afterSplit.actions.DOUBLE, 'double after split should remain available');
+assert.equal(afterSplit.actions.SPLIT, undefined, 're-split must not be offered');
+assert.equal(afterSplit.splitAvailable, false);
+assert.equal(afterSplit.remaining, 203, 'sibling split-hand cards must be removed from the shoe');
+
 console.log('All blackjack engine tests passed.');
