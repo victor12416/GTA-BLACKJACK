@@ -1,4 +1,4 @@
-import { analyzeHand } from './blackjack.js?v=20261003-8';
+import { analyzeHand } from './blackjack.js?v=20261003-9';
 
 self.addEventListener('message', (event) => {
   const { id, input } = event.data || {};
